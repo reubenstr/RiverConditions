@@ -1,44 +1,63 @@
 #include <Arduino.h>
 #include <SPI.h>
 #include <Wire.h>
-
 #include <Adafruit_GFX.h>
 #include <Adafruit_ILI9341.h>
-
 #include <WiFi.h>
 #include <HTTPClient.h>
-
 #include "ArduinoJson.h"
-
 #include <SPI.h>
 #include <SD.h>
+#include <Adafruit_NeoPixel.h>
 
 #define TFT_CS 5
 #define TFT_DC 2
-
 #define TFT_CLK 18
 #define TFT_MOSI 23
 #define TFT_MISO -1
 #define TFT_RST 4
-
 #define SD_CHIP_SELECT 22
+#define PIN_STRIP_LOCATIONS 15
+
+const int numLedLocations = 30;
 
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_RST);
+
+Adafruit_NeoPixel stripLocations = Adafruit_NeoPixel(numLedLocations, PIN_STRIP_LOCATIONS, NEO_GRB + NEO_KHZ800);
 
 const char *ssid = "RedSky";
 const char *password = "happyredcat";
 
-// Stores static station data that is not provided by the API.
-// Order of stations is the order of the LEDs.
+enum LocationStatus
+{
+  danger,
+  caution,
+  fair,
+  noData
+};
+
+// Location data contains IDs of associated stations.
+// Order of location is order of LEDs.
 struct Location
 {
-  String usgs[10];
-  String wr[10];
-  String shortName;
-  String area;
+  String usgs[10];       // USGS station IDs.
+  String wr[10];         // WaterReporter station IDs.
+  String shortName;      // Short name of location.
+  String area;           // Name of general station area.
+  LocationStatus status; // Status of the location.
 } locations[30];
 
 int numLocations;
+
+bool sdStatus = false;
+bool wifiStatus = false;
+bool apiStatus = false;
+
+const uint32_t OFF = 0x0000000;
+const uint32_t RED = 0x00FF0000;
+const uint32_t GREEN = 0x0000FF00;
+const uint32_t BLUE = 0x000000FF;
+const uint32_t YELLOW = 0x00F0F000;
 
 void FatalError(String errorMsg)
 {
@@ -105,7 +124,7 @@ bool GetJsonFromSDCard(String fileName, String *stationDataJson)
   return true;
 }
 
-bool PopulateStationInitFromSDCard()
+bool PopulateLocationInitFromSDCard()
 {
 
   String stationInitDataJson;
@@ -150,15 +169,15 @@ bool PopulateStationInitFromSDCard()
 void PrintData(int line, const char *text, const char *value, const char *units, uint16_t color)
 {
 
-  const int spacesPerLine = 25;
- // int numCharacters = strlen(text) + strlen(value) + strlen(units);
-int numCharacters = 16 + strlen(value) + strlen(units);
-
+  //const int spacesPerLine = 25;
+  // int numCharacters = strlen(text) + strlen(value) + strlen(units);
+  //int numCharacters = 16 + strlen(value) + strlen(units);
+  
   tft.setTextSize(2);
   tft.setCursor(5, 63 + line * 18);
 
   tft.setTextColor(ILI9341_WHITE, ILI9341_BLACK);
-  tft.printf("%-*s", 15,  text);
+  tft.printf("%-*s", 15, text);
 
   tft.setTextColor(color, ILI9341_BLACK);
   tft.printf("%-*s", 5, value);
@@ -198,42 +217,41 @@ bool UpdateLocationDataOnScreen(int locationIndex, String *locationDataJson)
   }
   else
   {
-
-    unsigned int streamFlow = doc["data"]["streamFlow"]["value"].as<unsigned int>();
-    unsigned int gaugeHeight = doc["data"]["gaugeHeight"]["value"].as<unsigned int>();
-    unsigned int waterTempC = doc["data"]["waterTempC"]["value"].as<unsigned int>();
-    unsigned int eColiConcentration = doc["data"]["eColiConcentration"]["value"].as<unsigned int>();
-    unsigned int bacteriaThreshold = doc["data"]["bacteriaThreshold"]["value"].as<unsigned int>();
+    signed int streamFlow = doc["data"]["streamFlow"]["value"].as<signed int>();
+    signed int gaugeHeight = doc["data"]["gaugeHeight"]["value"].as<signed int>();
+    signed int waterTempC = doc["data"]["waterTempC"]["value"].as<signed int>();
+    signed int eColiConcentration = doc["data"]["eColiConcentration"]["value"].as<signed int>();
+    signed int bacteriaThreshold = doc["data"]["bacteriaThreshold"]["value"].as<signed int>();
     String lastModifed = doc["station"]["recordTime"];
 
     char streamFlowString[20];
-    itoa(streamFlow, streamFlowString, 10);
+    sprintf(streamFlowString, "%i", streamFlow);
     uint16_t streamFlowColor = streamFlow == -9 ? ILI9341_WHITE : streamFlow < 2000 ? ILI9341_GREEN : streamFlow < 4000 ? ILI9341_YELLOW : ILI9341_RED;
 
-    char gaugeHeightString[20];
-    itoa(gaugeHeight, gaugeHeightString, 10);
+    char gaugeHeightString[20];    
+    sprintf(gaugeHeightString, "%i", gaugeHeight);
     uint16_t gaugeHeightColor = gaugeHeight == -9 ? ILI9341_WHITE : gaugeHeight < 2 ? ILI9341_GREEN : gaugeHeight < 6 ? ILI9341_YELLOW : ILI9341_RED;
 
-    char waterTempCString[20];
-    itoa(waterTempC, waterTempCString, 10);
+    char waterTempCString[20];   
+    sprintf(waterTempCString, "%i", waterTempC);
     uint16_t waterTempCColor = waterTempC == -9 ? ILI9341_WHITE : waterTempC < 2 ? ILI9341_GREEN : waterTempC < 6 ? ILI9341_YELLOW : ILI9341_RED;
 
     char eColiConcentrationString[20];
-    itoa(eColiConcentration, eColiConcentrationString, 10);
+    sprintf(eColiConcentrationString, "%i", eColiConcentration);
     uint16_t eColiConcentrationColor = eColiConcentration == -9 ? ILI9341_WHITE : eColiConcentration < 2 ? ILI9341_GREEN : eColiConcentration < 6 ? ILI9341_YELLOW : ILI9341_RED;
 
     char bacteriaThresholdString[20];
-    itoa(bacteriaThreshold, bacteriaThresholdString, 10);
+    sprintf(bacteriaThresholdString, "%i", bacteriaThreshold);
     uint16_t bacteriaThresholdColor = bacteriaThreshold == -9 ? ILI9341_WHITE : bacteriaThreshold < 2 ? ILI9341_GREEN : bacteriaThreshold < 6 ? ILI9341_YELLOW : ILI9341_RED;
+
+    char lastModifedBuf[20];
+    sprintf(lastModifedBuf, "%s  %s", lastModifed.substring(0, 10).c_str(), lastModifed.substring(11, 19).c_str());
 
     PrintData(0, "Stream Flow:", streamFlowString, "ft3/s", streamFlowColor);
     PrintData(1, "Gauge Height:", gaugeHeightString, "ft", gaugeHeightColor);
     PrintData(2, "Water temp.:", waterTempCString, "C", waterTempCColor);
     PrintData(3, "E-coli:", eColiConcentrationString, "C/sa", eColiConcentrationColor);
-    PrintData(4, "Bac. threshold:", bacteriaThresholdString, "", bacteriaThresholdColor);
-
-    char lastModifedBuf[20];
-    sprintf(lastModifedBuf, "%s  %s", lastModifed.substring(0, 10).c_str(), lastModifed.substring(11, 19).c_str());
+    PrintData(4, "Bac. threshold:", bacteriaThresholdString, "", bacteriaThresholdColor);    
     PrintData(6, "Date Retrieved:", "", "", ILI9341_WHITE);
     PrintData(7, lastModifedBuf, "", "", ILI9341_GREEN);
   }
@@ -269,16 +287,7 @@ bool GetParametersFromSDCard()
         ssid = doc["ssid"].as<String>();
         password = doc["password"].as<String>();
         timeZone = doc["time zone"].as<String>();
-        brightness = doc["brightness"].as<int>();
-        ;
-        cycleDelay = doc["cycle delay"].as<int>();
-        ;
-        metalSpot[0].percentage = doc["au alert percentage"].as<float>();
-        ;
-        metalSpot[1].percentage = doc["ag alert percentage"].as<float>();
-        ;
-        metalSpot[2].percentage = doc["pt alert percentage"].as<float>();
-        ;
+        brightness = doc["brightness"].as<int>();         
     }
     file.close();
     return true;
@@ -317,28 +326,20 @@ void DisplayIndicator(String string, int x, int y, uint16_t color)
   tft.print(string);
 }
 
-void DisplayData()
+void UpdateIndicators()
 {
-  tft.setCursor(5, 5);
-  tft.setTextSize(3);
-  tft.setTextColor(ILI9341_BLUE);
-  tft.println("Opossum Creek");
-  tft.println("Lynchburg, VA");
-  tft.setTextSize(2);
-  tft.setTextColor(ILI9341_GREEN);
-
-  tft.println();
-  tft.println("Status: Active");
-  tft.println();
-  tft.println("Discharge: 1253 ft3");
-  tft.println();
-  tft.println("Gage Height: 156 feet");
-  tft.println();
-  tft.println("Last Checked: 2020-05-05 : 10:45:78");
+  DisplayIndicator("SD", 110, 215, sdStatus ? ILI9341_GREEN : ILI9341_RED);
+  DisplayIndicator("WIFI", 165, 215, wifiStatus ? ILI9341_GREEN : ILI9341_RED);
+  DisplayIndicator("API", 260, 215, apiStatus ? ILI9341_GREEN : ILI9341_RED);
 }
 
-void PrintHeap()
+void UpdateLocationIndicators()
 {
+  for (int i = 0; i < numLocations; i++)
+  {
+    stripLocations.setPixelColor(i, locations[i].status == fair ? GREEN : locations[i].status == caution ? YELLOW : locations[i].status == danger ? RED : locations[i].status == noData ? OFF : OFF);
+  }
+  stripLocations.show();
 }
 
 void setup()
@@ -348,92 +349,32 @@ void setup()
   delay(10);
   Serial.println("River Conditions starting up...");
 
+  stripLocations.begin();
+  stripLocations.show();
+
   tft.begin();
-
-  // read diagnostics (optional but can help debug problems)
-  /*
-  uint8_t x = tft.readcommand8(ILI9341_RDMODE);
-  Serial.print("Display Power Mode: 0x");
-  Serial.println(x, HEX);
-  x = tft.readcommand8(ILI9341_RDMADCTL);
-  Serial.print("MADCTL Mode: 0x");
-  Serial.println(x, HEX);
-  x = tft.readcommand8(ILI9341_RDPIXFMT);
-  Serial.print("Pixel Format: 0x");
-  Serial.println(x, HEX);
-  x = tft.readcommand8(ILI9341_RDIMGFMT);
-  Serial.print("Image Format: 0x");
-  Serial.println(x, HEX);
-  x = tft.readcommand8(ILI9341_RDSELFDIAG);
-  Serial.print("Self Diagnostic: 0x");
-  Serial.println(x, HEX);
-  */
-
   tft.fillScreen(ILI9341_BLACK);
   tft.setRotation(3);
 
-  bool sdStatus = true;
-  bool wifiStatus = false;
-  bool apiStatus = false;
-
   DisplayLayout();
 
-  DisplayIndicator("SD", 110, 215, sdStatus ? ILI9341_GREEN : ILI9341_RED);
-  DisplayIndicator("WIFI", 165, 215, wifiStatus ? ILI9341_GREEN : ILI9341_RED);
-  DisplayIndicator("API", 260, 215, apiStatus ? ILI9341_GREEN : ILI9341_RED);
+  UpdateIndicators();
 
   if (!InitSDCard())
   {
     FatalError("Unable to init SD card.");
   }
-
-  if (!PopulateStationInitFromSDCard())
+  else
   {
-    FatalError("Failed to get station init data.");
+    sdStatus = true;
   }
 
-  /*
-  const int stations[3] = {12, 14, 16};
-
-  StaticJsonDocument<4096> doc;
-  JsonArray arrayStations = doc.createNestedArray("stations");
-
-  for (int i = 0; i < sizeof(stations) / sizeof(stations[0]); i++)
+  if (!PopulateLocationInitFromSDCard())
   {
-    StaticJsonDocument<1024> arrayStationData;
-
-    arrayStationData["id"] = stations[i];
-    arrayStationData["name"] = "N/A";
-    arrayStationData["isActive"] = true;
-    arrayStationData["description"] = "station description";
-    arrayStationData["ledIndex"] = i;
-
-    JsonObject nestedVariable = arrayStationData.createNestedObject("data");
-
-    JsonObject bacteria_threshold = nestedVariable.createNestedObject("bacteria_threshold");
-    bacteria_threshold["date"] = "10-10-10";
-    bacteria_threshold["value"] = -1;
-    JsonObject water_temp_c = nestedVariable.createNestedObject("water_temp_c");
-    water_temp_c["date"] = "10-10-10";
-    water_temp_c["value"] = -1;
-    JsonObject e_coli_concentration = nestedVariable.createNestedObject("e_coli_concentration");
-    e_coli_concentration["date"] = "10-10-10";
-    e_coli_concentration["value"] = -1;
-    JsonObject stream_flow = nestedVariable.createNestedObject("stream_flow");
-    stream_flow["date"] = "10-10-10";
-    stream_flow["value"] = -1;
-    JsonObject gauge_height = nestedVariable.createNestedObject("gauge_height");
-    gauge_height["date"] = "10-10-10";
-    gauge_height["value"] = -1;
-
-    arrayStations.add(arrayStationData);
+    FatalError("Failed to get location init data.\n(locations.json required)");
   }
 
-  Serial.println();
-  serializeJsonPretty(doc, Serial);
-
-  //DisplayData();
-  */
+  UpdateLocationIndicators();
 
   /*
   Serial.print("Connecting to ");
@@ -558,9 +499,7 @@ JsonObject& forecast = elem["item"]["forecast"];
 void loop(void)
 {
 
-  //delay(1000);
-
-  unsigned long m = millis();
+  delay(1000);
 
   static int locationIndex = 0;
 
@@ -570,20 +509,17 @@ void loop(void)
   }
 
   String stationDataJson;
-
   if (!GetJsonFromSDCard("/locations/" + String(locationIndex), &stationDataJson))
   {
-    //FatalError("Failed to get station " + stations[stationIndex].id + "'s data.");
-    UpdateLocationDataOnScreen(locationIndex, &stationDataJson);
-  }
-  else
-  {
-    UpdateLocationDataOnScreen(locationIndex, &stationDataJson);
+    // Check SD card for connectivity.
+    String path = "/locations.json";
+    File file = SD.open(path);
+    if (!file)
+    {
+      FatalError("SD card not detected.\nTurn off device and\nreinsert valid SD card.");
+    }
+    file.close();
   }
 
-int pm = millis() - m;
-Serial.print("time: ");
-Serial.println(pm);
-
-  //Serial.print(stationDataJson);
+  UpdateLocationDataOnScreen(locationIndex, &stationDataJson);
 }
