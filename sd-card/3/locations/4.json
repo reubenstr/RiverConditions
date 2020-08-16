@@ -1,0 +1,31 @@
+{
+    "station": {
+        "id": 8863,
+        "name": "James River at Scottsville",
+        "isActive": true,
+        "description": "This site is monitored by James River Association Volunteers.",
+        "recordTime": "2020-08-15T22:49:14+0200"
+    },
+    "data": {
+        "bacteriaThreshold": {
+            "date": "2020-08-13T11:30:00.200093",
+            "value": 0
+        },
+        "waterTempC": {
+            "date": "2020-08-13T11:30:00.200093",
+            "value": 27.7
+        },
+        "eColiConcentration": {
+            "date": "2020-08-13T11:30:00.200093",
+            "value": 67
+        },
+        "streamFlow": {
+            "date": -9,
+            "value": 0
+        },
+        "gaugeHeight": {
+            "date": -9,
+            "value": 0
+        }
+    }
+}

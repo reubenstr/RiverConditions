@@ -38,7 +38,7 @@ struct Location
   String area;
 } locations[30];
 
-int numLocations;
+int numStations;
 
 void FatalError(String errorMsg)
 {
@@ -130,18 +130,18 @@ bool PopulateStationInitFromSDCard()
   for (int i = 0; i < numLocations; i++)
   {
 
-    for (int u = 0; u < doc["locations"][i]["USGS"].size(); u++)
+    for(int u = 0; u < doc["locations"][i]["USGS"].size(); u++)
     {
       locations[i].usgs[u] = doc["locations"][i]["USGS"][u].as<String>();
     }
-
-    for (int w = 0; w < doc["locations"][w]["WR"].size(); w++)
+    
+    for(int w = 0; w < doc["locations"][w]["WR"].size(); u++)
     {
       locations[i].wr[w] = doc["locations"][i]["WR"][w].as<String>();
     }
 
     locations[i].shortName = doc["locations"][i]["shortName"].as<String>();
-    locations[i].area = doc["locations"][i]["area"].as<String>();
+    locations[i].location = doc["locations"][i]["area"].as<String>();
   }
 
   return true;
@@ -151,32 +151,33 @@ void PrintData(int line, const char *text, const char *value, const char *units,
 {
 
   const int spacesPerLine = 25;
- // int numCharacters = strlen(text) + strlen(value) + strlen(units);
-int numCharacters = 16 + strlen(value) + strlen(units);
+  int numCharacters = strlen(text) + strlen(value) + strlen(units);
 
   tft.setTextSize(2);
   tft.setCursor(5, 63 + line * 18);
 
-  tft.setTextColor(ILI9341_WHITE, ILI9341_BLACK);
-  tft.printf("%-*s", 15,  text);
+  tft.setTextColor(ILI9341_WHITE, ILI9341_BLACK); 
+  tft.printf(text);
 
   tft.setTextColor(color, ILI9341_BLACK);
-  tft.printf("%-*s", 5, value);
+  tft.print(value);
 
   tft.setTextColor(ILI9341_WHITE, ILI9341_BLACK);
   tft.print(units);
 
-  //tft.printf("%-*s", spacesPerLine - numCharacters, "");
+  tft.printf("%-*s", spacesPerLine - numCharacters, "");
 }
 
 bool UpdateLocationDataOnScreen(int locationIndex, String *locationDataJson)
 {
+
+  //tft.fillRect(5, 40, tft.width() - 10, 180, ILI9341_BLACK);
   tft.setTextSize(3);
   tft.setTextColor(ILI9341_WHITE, ILI9341_BLACK);
   tft.setCursor(5, 5);
   tft.printf("%-17s", locations[locationIndex].shortName.c_str());
   tft.setCursor(5, 30);
-  tft.printf("%-17s", locations[locationIndex].area.c_str());
+  tft.printf("%-17s", locations[locationIndex].location.c_str());
 
   tft.setTextSize(2);
   tft.setTextColor(ILI9341_GREEN, ILI9341_BLACK);
@@ -189,12 +190,19 @@ bool UpdateLocationDataOnScreen(int locationIndex, String *locationDataJson)
     Serial.print(F("DeserializeJson() failed: "));
     Serial.println(error.c_str());
 
-    char locationString[50];
-    sprintf(locationString, "(filename: %u.json, was not found.)", locationIndex);
+    uint16_t color;
+    static unsigned int x = -1;
+    x++;
+    color = ILI9341_RED;
+    //PrintData(0, "Stream Flow: ", 9 * x, " ft3/s", color);
 
-    PrintData(0, "", "Location not found on SD card.", "", ILI9341_RED);
-    PrintData(1, "", "(data will be fetched from API shortly)", "", ILI9341_RED);
-    PrintData(2, "", locationString, "", ILI9341_RED);
+    /*
+    PrintDataText(0, "Station Data Incomplete");
+    PrintDataText(1, "(Data will be downloaded)");
+    PrintDataText(2, "");
+    PrintDataText(3, "");
+    PrintDataText(4, "");
+    */
   }
   else
   {
@@ -226,15 +234,15 @@ bool UpdateLocationDataOnScreen(int locationIndex, String *locationDataJson)
     itoa(bacteriaThreshold, bacteriaThresholdString, 10);
     uint16_t bacteriaThresholdColor = bacteriaThreshold == -9 ? ILI9341_WHITE : bacteriaThreshold < 2 ? ILI9341_GREEN : bacteriaThreshold < 6 ? ILI9341_YELLOW : ILI9341_RED;
 
-    PrintData(0, "Stream Flow:", streamFlowString, "ft3/s", streamFlowColor);
-    PrintData(1, "Gauge Height:", gaugeHeightString, "ft", gaugeHeightColor);
-    PrintData(2, "Water temp.:", waterTempCString, "C", waterTempCColor);
-    PrintData(3, "E-coli:", eColiConcentrationString, "C/sa", eColiConcentrationColor);
-    PrintData(4, "Bac. threshold:", bacteriaThresholdString, "", bacteriaThresholdColor);
+    PrintData(0, "Stream Flow: ", streamFlowString, " ft3/s", streamFlowColor);
+    PrintData(1, "Gauge Height: ",gaugeHeightString , " ft", gaugeHeightColor);
+    PrintData(2, "Water temp.: ", waterTempCString, " C", waterTempCColor);
+    PrintData(3, "E-coli: ", eColiConcentrationString, " C/sa", eColiConcentrationColor);
+    PrintData(4, "Bac. threshold: ", bacteriaThresholdString, "", bacteriaThresholdColor);
 
     char lastModifedBuf[20];
-    sprintf(lastModifedBuf, "%s  %s", lastModifed.substring(0, 10).c_str(), lastModifed.substring(11, 19).c_str());
-    PrintData(6, "Date Retrieved:", "", "", ILI9341_WHITE);
+    sprintf(lastModifedBuf, "%s | %s", lastModifed.substring(0,10).c_str(), lastModifed.substring(11,18).c_str());
+    PrintData(6, "Date Retrieved: ", "", "", ILI9341_WHITE);
     PrintData(7, lastModifedBuf, "", "", ILI9341_GREEN);
   }
 
@@ -558,20 +566,18 @@ JsonObject& forecast = elem["item"]["forecast"];
 void loop(void)
 {
 
-  //delay(1000);
-
-  unsigned long m = millis();
+  delay(1000);
 
   static int locationIndex = 0;
 
-  if (++locationIndex > numLocations - 1)
+  if (++locationIndex > numStations - 1)
   {
     locationIndex = 0;
   }
 
   String stationDataJson;
 
-  if (!GetJsonFromSDCard("/locations/" + String(locationIndex), &stationDataJson))
+  if (!GetJsonFromSDCard(String(locationIndex), &stationDataJson))
   {
     //FatalError("Failed to get station " + stations[stationIndex].id + "'s data.");
     UpdateLocationDataOnScreen(locationIndex, &stationDataJson);
@@ -580,10 +586,6 @@ void loop(void)
   {
     UpdateLocationDataOnScreen(locationIndex, &stationDataJson);
   }
-
-int pm = millis() - m;
-Serial.print("time: ");
-Serial.println(pm);
 
   //Serial.print(stationDataJson);
 }

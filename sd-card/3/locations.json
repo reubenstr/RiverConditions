@@ -1,0 +1,38 @@
+{
+  "locations": [
+    {
+      "USGS": [
+        "02019500"
+      ],
+      "WR": [],
+      "shortName": "James River",
+      "area": "Buchanan, Va"
+    },
+    {
+      "USGS": [
+        "02025500"
+      ],
+      "WR": [],
+      "shortName": "James River",
+      "area": "Holcomb Rock, Va"
+    },
+    {
+      "USGS": [],
+      "WR": [
+        "8864"
+      ],
+      "shortName": "James River",
+      "area": "Lynchburg, Va"
+    },
+    {
+      "USGS": [
+        "02029000"
+      ],
+      "WR": [
+        "8863"
+      ],
+      "shortName": "James River",
+      "area": "Scottsville, Va"
+    }
+  ]
+}

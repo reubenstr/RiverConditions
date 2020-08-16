@@ -1,0 +1,31 @@
+{
+    "station": {
+        "id": "02019500",
+        "name": "JAMES RIVER AT BUCHANAN, VA",
+        "isActive": true,
+        "description": "USGS stream monitoring site.",
+        "recordTime": "2020-08-15T22:46:15+0200"
+    },
+    "data": {
+        "bacteriaThreshold": {
+            "date": "",
+            "value": -9
+        },
+        "waterTempC": {
+            "date": "",
+            "value": -9
+        },
+        "eColiConcentration": {
+            "date": "",
+            "value": -9
+        },
+        "streamFlow": {
+            "date": "2020-08-15T15:45:00.000-04:00",
+            "value": 2130
+        },
+        "gaugeHeight": {
+            "date": "2020-08-15T15:45:00.000-04:00",
+            "value": 4
+        }
+    }
+}
