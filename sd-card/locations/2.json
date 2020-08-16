@@ -1,0 +1,34 @@
+{
+  "station": {
+    "usgsId": "",
+    "wrId": "8864",
+    "usgsName": "",
+    "wrName": "James River at Lynchburg",
+    "wrIsActive": true,
+    "usgsDescription": "",
+    "wrDescription": "This site is monitored by James River Association volunteers.",
+    "recordTime": "2020-08-16T04:10:38+0200"
+  },
+  "data": {
+    "bacteriaThreshold": {
+      "date": "2020-08-13T11:25:00",
+      "value": 0
+    },
+    "waterTempC": {
+      "date": "2020-08-13T11:25:00",
+      "value": 27.5
+    },
+    "eColiConcentration": {
+      "date": "2020-08-13T11:25:00",
+      "value": 100
+    },
+    "streamFlow": {
+      "date": "",
+      "value": -9
+    },
+    "gaugeHeight": {
+      "date": "",
+      "value": -9
+    }
+  }
+}

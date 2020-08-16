@@ -1,0 +1,104 @@
+USGS Water Services:
+
+USGS Instantaneous Values API:
+Main site: https://waterservices.usgs.gov/
+API details: https://waterservices.usgs.gov/rest/IV-Service.html
+Instantaneous Values Test Tool: https://waterservices.usgs.gov/rest/IV-Test-Tool.html
+Example query: https://waterservices.usgs.gov/nwis/iv/?format=json&sites=02029000&parameterCd=00060,00065
+
+Note:
+USGS offer several API, the daily values return statisical data such as min, max, and mean.
+https://waterservices.usgs.gov/rest/DV-Service.html
+
+parameterCd:
+	00060 Discharge
+	00065 Gage height
+	
+	
+Site search by name, provides site number (8 digit station id)
+https://waterdata.usgs.gov/nwis/uv?search_station_nm=james%20river&search_station_nm_match_type=beginning&format=station_list&group_key=NONE&range_selection=days&period=7&begin_date=2020-08-04&end_date=2020-08-11&date_format=YYYY-MM-DD&rdb_compression=file&list_of_search_criteria=search_station_nm%2Crealtime_parameter_selection
+
+Crude map of stream gauges (helps gather 8 digit station id):
+https://waterwatch.usgs.gov/?m=real&r=va
+
+Station landing pages contain an interactive map of nearby stations (helps gather 8 digit station id):
+https://waterdata.usgs.gov/monitoring-location/02029000/
+	
+-------------------------
+	
+Get station information:	
+	
+USGS-02029000
+https://www.waterqualitydata.us/data/Station/search?siteid=USGS-02029000&characteristicName=Atrazine&mimeType=geojson	
+
+
+-------------
+
+Water reporter:
+
+Iframe direct map (for jamesriverwatch) https://maps.waterreporter.org/b51fd61f8fb606f9/
+
+Data for a specific station:
+https://stations.waterreporter.org/19656/supplement.json
+
+
+Example stations IDs: (waterreporter's id)
+8843 : JAMES RIVER AT CARTERSVILLE, VA
+8871 : James River at Maidens
+
+
+Example sites using data with reference to water report:
+https://www.rivannariver.org/monitoring-about/
+https://www.theswimguide.org/beach/7853
+
+-----------------------------
+Rivanna Convervation Alliance:
+
+Bateria map with data:
+https://www.rivannariver.org/bacteria/
+
+Direct map iFrame:
+https://rca-water.maps.arcgis.com/apps/webappviewer/index.html?id=abacd0e7c37c4e60a3d54773d5f6b0cd
+
+Map landing page with organization detail
+https://rca-water.maps.arcgis.com/home/item.html?id=ba66520600d440e38fcadf42779916e6
+
+Rest-able data:
+https://services2.arcgis.com/9vP1BgQvmKmOU0Rj/ArcGIS/rest/services/RCABacteriaData2020/FeatureServer
+https://services2.arcgis.com/9vP1BgQvmKmOU0Rj/ArcGIS/rest/services/RCABacteriaData2020/FeatureServer/0
+
+-----------------------------------------------------------------------------
+Misc API / data sets:
+
+Chesapeake Data Explorer:
+But data sends at 2019.
+https://cmc.vims.edu/#/home
+
+
+Chesapeake Water Quality:
+No recent records.
+http://data.chesapeakebay.net/API
+http://data.chesapeakebay.net/WaterQuality
+http://data.chesapeakebay.net/API#waterquality
+
+--------------------------------------------------------
+
+
+
+
+Water monitoring sites API:
+Intro: https://waterdata.usgs.gov/blog/nldi-intro/
+API example: https://labs.waterdata.usgs.gov/api/nldi/linked-data/nwissite/USGS-02029000
+
+
+
+Other links:
+
+USGS locations aquired from (a start, but does have them all):
+https://www.jamesriverwatch.org/james-river-watch
+
+More USGS locations are mapped out in a location landing page, such a page:
+https://waterdata.usgs.gov/monitoring-location/02029000/
+
+
+

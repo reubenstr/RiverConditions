@@ -9,6 +9,8 @@
 #include <SPI.h>
 #include <SD.h>
 #include <Adafruit_NeoPixel.h>
+#include <Time.h>
+#include "utilities.h"
 
 #define TFT_CS 5
 #define TFT_DC 2
@@ -20,6 +22,7 @@
 #define PIN_STRIP_LOCATIONS 15
 
 const int numLedLocations = 30;
+const int daysDataIsValid = 7;
 
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_RST);
 
@@ -47,11 +50,16 @@ struct Location
   LocationStatus status; // Status of the location.
 } locations[30];
 
-int numLocations;
+
 
 bool sdStatus = false;
 bool wifiStatus = false;
 bool apiStatus = false;
+
+int numLocations;
+int selectedLoctionIndex;
+String currentTime;
+int displayScreen;
 
 const uint32_t OFF = 0x0000000;
 const uint32_t RED = 0x00FF0000;
@@ -168,11 +176,6 @@ bool PopulateLocationInitFromSDCard()
 
 void PrintData(int line, const char *text, const char *value, const char *units, uint16_t color)
 {
-
-  //const int spacesPerLine = 25;
-  // int numCharacters = strlen(text) + strlen(value) + strlen(units);
-  //int numCharacters = 16 + strlen(value) + strlen(units);
-
   tft.setTextSize(2);
   tft.setCursor(5, 63 + line * 18);
 
@@ -183,12 +186,10 @@ void PrintData(int line, const char *text, const char *value, const char *units,
   tft.printf("%-*s", 5, value);
 
   tft.setTextColor(ILI9341_WHITE, ILI9341_BLACK);
-  tft.print(units);
-
-  //tft.printf("%-*s", spacesPerLine - numCharacters, "");
+  tft.printf("%-*s", 5, units); 
 }
 
-bool UpdateLocationDataOnScreen(int locationIndex, String *locationDataJson)
+bool UpdateLocationDataOnScreen(int locationIndex, String *locationDataJson, int displayScreen)
 {
   tft.setTextSize(3);
   tft.setTextColor(ILI9341_WHITE, ILI9341_BLACK);
@@ -217,6 +218,7 @@ bool UpdateLocationDataOnScreen(int locationIndex, String *locationDataJson)
   }
   else
   {
+    // Get data from json.
     signed int streamFlow = doc["data"]["streamFlow"]["value"].as<signed int>();
     signed int gaugeHeight = doc["data"]["gaugeHeight"]["value"].as<signed int>();
     signed int waterTempC = doc["data"]["waterTempC"]["value"].as<signed int>();
@@ -224,6 +226,7 @@ bool UpdateLocationDataOnScreen(int locationIndex, String *locationDataJson)
     signed int bacteriaThreshold = doc["data"]["bacteriaThreshold"]["value"].as<signed int>();
     String lastModifed = doc["station"]["recordTime"];
 
+    // Init displaying variables.
     char streamFlowString[20];
     sprintf(streamFlowString, "%i", streamFlow);
     if (streamFlow == -9)
@@ -254,50 +257,43 @@ bool UpdateLocationDataOnScreen(int locationIndex, String *locationDataJson)
       strcpy(bacteriaThresholdString, "N/A");
     uint16_t bacteriaThresholdColor = bacteriaThreshold == -9 ? ILI9341_WHITE : bacteriaThreshold < 2 ? ILI9341_GREEN : bacteriaThreshold < 6 ? ILI9341_YELLOW : ILI9341_RED;
 
-    char stationsTypesString[30];
-    sprintf(stationsTypesString, "%s", "USGS, WR");
-    strcpy(stationsTypesString, "N/A");
-    /*
-    if (!locations[locationIndex].usgs->isEmpty() && !locations[locationIndex].wr->isEmpty())
-    {
-      strcpy(stationsTypes, "USGS, WR");
-      sprintf(stationsTypes, "%s", "USGS, WR");
-    }
-    else if (!locations[locationIndex].usgs->isEmpty())
-    {
-      strcpy(stationsTypes, "USGS");
-      sprintf(stationsTypes, "%s", "USGS, WR");
-    }
-    else if (!locations[locationIndex].wr->isEmpty())
-    {
-      strcpy(stationsTypes, "WR");
-      sprintf(stationsTypes, "%s", "USGS, WR");
-    }
-    */
     const char stationTypes[4][9] = {"N/A     ", "USGS    ", "WR      ", "USGS, WR"};
-
-    //const String stationTypes[4] = {"N/A", "USGS", "WR", "USGS, WR"};
-
     int stationTypeIndex = !locations[locationIndex].usgs->isEmpty() && !locations[locationIndex].wr->isEmpty() ? 3 : !locations[locationIndex].usgs->isEmpty() ? 1 : !locations[locationIndex].wr->isEmpty() ? 2 : 0;
-
-    ////////////////
-    Serial.println(locations[locationIndex].usgs->c_str());
-    Serial.println(locations[locationIndex].wr->c_str());
-    ////////////////
 
     char lastModifedBuf[20];
     sprintf(lastModifedBuf, "%s  %s", lastModifed.substring(0, 10).c_str(), lastModifed.substring(11, 19).c_str());
 
     // TODO CHECK FOR O/D data.
 
-    PrintData(0, "Stream Flow:", streamFlowString, "ft3/s", streamFlowColor);
-    PrintData(1, "Gauge Height:", gaugeHeightString, "ft", gaugeHeightColor);
-    PrintData(2, "Water temp.:", waterTempCString, "C", waterTempCColor);
-    PrintData(3, "E-coli:", eColiConcentrationString, "C/sa", eColiConcentrationColor);
-    PrintData(4, "Bac. threshold:", bacteriaThresholdString, "", bacteriaThresholdColor);
-    PrintData(5, "Station types:", stationTypes[stationTypeIndex], "", ILI9341_WHITE);
-    PrintData(6, "Date Retrieved:", "", "", ILI9341_WHITE);
-    PrintData(7, lastModifedBuf, "", "", ILI9341_GREEN);
+    if (displayScreen == 0)
+    {
+      PrintData(0, "Stream Flow:", streamFlowString, "ft3/s", streamFlowColor);
+      PrintData(1, "Gauge Height:", gaugeHeightString, "ft", gaugeHeightColor);
+      PrintData(2, "Water temp.:", waterTempCString, "C", waterTempCColor);
+      PrintData(3, "E-coli:", eColiConcentrationString, "C/sa", eColiConcentrationColor);
+      PrintData(4, "Bac. threshold:", bacteriaThresholdString, "", bacteriaThresholdColor);
+      PrintData(5, "Station types:", stationTypes[stationTypeIndex], "", ILI9341_WHITE);
+      PrintData(6, "Date Retrieved:", "", "", ILI9341_WHITE);
+      PrintData(7, lastModifedBuf, "", "", ILI9341_GREEN);
+    }
+    else if (displayScreen == 1)
+    {
+
+      uint16_t color = AreDateTimesWithinNDays(currentTime, doc["data"]["streamFlow"]["date"].as<String>(), daysDataIsValid) ? ILI9341_GREEN : ILI9341_RED;
+      PrintData(0, "Stream Flow:", doc["data"]["streamFlow"]["date"].as<String>().substring(0, 10).c_str(), "", color);
+
+      color = AreDateTimesWithinNDays(currentTime, doc["data"]["gaugeHeight"]["date"].as<String>(), daysDataIsValid) ? ILI9341_GREEN : ILI9341_RED;
+      PrintData(1, "Gauge Height:", doc["data"]["gaugeHeight"]["date"].as<String>().substring(0, 10).c_str(), "", color);
+
+      color = AreDateTimesWithinNDays(currentTime, doc["data"]["waterTempC"]["date"].as<String>(), daysDataIsValid) ? ILI9341_GREEN : ILI9341_RED;
+      PrintData(2, "Water temp.:", doc["data"]["waterTempC"]["date"].as<String>().substring(0, 10).c_str(), "", color);
+
+      color = AreDateTimesWithinNDays(currentTime, doc["data"]["eColiConcentration"]["date"].as<String>(), daysDataIsValid) ? ILI9341_GREEN : ILI9341_RED;
+      PrintData(3, "E-coli:", doc["data"]["eColiConcentration"]["date"].as<String>().substring(0, 10).c_str(), "", color);
+
+      color = AreDateTimesWithinNDays(currentTime, doc["data"]["bacteriaThreshold"]["date"].as<String>(), daysDataIsValid) ? ILI9341_GREEN : ILI9341_RED;
+      PrintData(4, "Bac. threshold:", doc["data"]["bacteriaThreshold"]["date"].as<String>().substring(0, 10).c_str(), "", color);
+    }
   }
 
   return true;
@@ -372,18 +368,32 @@ void DisplayIndicator(String string, int x, int y, uint16_t color)
 
 void UpdateIndicators()
 {
-  DisplayIndicator("SD", 110, 215, sdStatus ? ILI9341_GREEN : ILI9341_RED);
-  DisplayIndicator("WIFI", 165, 215, wifiStatus ? ILI9341_GREEN : ILI9341_RED);
-  DisplayIndicator("API", 260, 215, apiStatus ? ILI9341_GREEN : ILI9341_RED);
+  static int oldStatusSum = 5;
+  int statusSum = (int)sdStatus + (int)wifiStatus + (int)apiStatus;
+
+  if (oldStatusSum != statusSum)
+  {
+    oldStatusSum = statusSum;
+    DisplayIndicator("SD", 110, 215, sdStatus ? ILI9341_GREEN : ILI9341_RED);
+    DisplayIndicator("WIFI", 165, 215, wifiStatus ? ILI9341_GREEN : ILI9341_RED);
+    DisplayIndicator("API", 260, 215, apiStatus ? ILI9341_GREEN : ILI9341_RED);
+  }
 }
 
 void UpdateLocationIndicators()
 {
-  for (int i = 0; i < numLocations; i++)
+  static int oldSelectedLoctionIndex;
+
+  if (oldSelectedLoctionIndex != selectedLoctionIndex)
   {
-    stripLocations.setPixelColor(i, locations[i].status == fair ? GREEN : locations[i].status == caution ? YELLOW : locations[i].status == danger ? RED : locations[i].status == noData ? OFF : OFF);
+    oldSelectedLoctionIndex = selectedLoctionIndex;
+
+    for (int i = 0; i < numLocations; i++)
+    {
+      stripLocations.setPixelColor(i, locations[i].status == fair ? GREEN : locations[i].status == caution ? YELLOW : locations[i].status == danger ? RED : locations[i].status == noData ? OFF : OFF);
+    }
+    stripLocations.show();
   }
-  stripLocations.show();
 }
 
 void setup()
@@ -543,27 +553,43 @@ JsonObject& forecast = elem["item"]["forecast"];
 void loop(void)
 {
 
+  // TEMP TEMP TEMP
+  currentTime = "2020-08-15T19:15:00.000-04:00";
+
   delay(1000);
 
-  static int locationIndex = 0;
-
-  if (++locationIndex > numLocations - 1)
+  if (++selectedLoctionIndex > numLocations - 1)
   {
-    locationIndex = 0;
+    selectedLoctionIndex = 0;
   }
 
-  String locationDataJson;
-  if (!GetJsonFromSDCard("/locations/" + String(locationIndex), &locationDataJson))
+  UpdateIndicators();
+
+  UpdateLocationIndicators();
+
+  static int oldSelectedLoctionIndex;
+
+  if (oldSelectedLoctionIndex != selectedLoctionIndex)
   {
-    // Check SD card for connectivity.
-    String path = "/locations.json";
-    File file = SD.open(path);
-    if (!file)
+    oldSelectedLoctionIndex = selectedLoctionIndex;
+
+    String locationDataJson;
+    if (GetJsonFromSDCard("/locations/" + String(selectedLoctionIndex), &locationDataJson))
     {
-      FatalError("SD card not detected.\nTurn off device and\nreinsert valid SD card.");
+      unsigned long m = millis();
+      UpdateLocationDataOnScreen(selectedLoctionIndex, &locationDataJson, displayScreen);
+      Serial.printf("Time to print data: %u\n", millis() - m);
     }
-    file.close();
+    else
+    {
+      // Check SD card for connectivity.
+      String path = "/locations.json";
+      File file = SD.open(path);
+      if (!file)
+      {
+        FatalError("SD card not detected.\nTurn off device and\nreinsert valid SD card.");
+      }
+      file.close();
+    }
   }
-
-  UpdateLocationDataOnScreen(locationIndex, &locationDataJson);
 }
