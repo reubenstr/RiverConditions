@@ -50,8 +50,6 @@ struct Location
   LocationStatus status; // Status of the location.
 } locations[30];
 
-
-
 bool sdStatus = false;
 bool wifiStatus = false;
 bool apiStatus = false;
@@ -186,7 +184,16 @@ void PrintData(int line, const char *text, const char *value, const char *units,
   tft.printf("%-*s", 5, value);
 
   tft.setTextColor(ILI9341_WHITE, ILI9341_BLACK);
-  tft.printf("%-*s", 5, units); 
+  tft.printf("%-*s", 5, units);
+}
+
+void PrinInfo(int line, const char *text, uint16_t color)
+{
+  tft.setTextSize(2);
+  tft.setCursor(5, 63 + line * 18);
+
+  tft.setTextColor(color, ILI9341_BLACK);
+  tft.printf("%-*s", 25, text);
 }
 
 bool UpdateLocationDataOnScreen(int locationIndex, String *locationDataJson, int displayScreen)
@@ -212,9 +219,14 @@ bool UpdateLocationDataOnScreen(int locationIndex, String *locationDataJson, int
     char locationString[50];
     sprintf(locationString, "(filename: %u.json, was not found.)", locationIndex);
 
-    PrintData(0, "", "Location not found on SD card.", "", ILI9341_RED);
-    PrintData(1, "", "(data will be fetched from API shortly)", "", ILI9341_RED);
-    PrintData(2, "", locationString, "", ILI9341_RED);
+    PrinInfo(0, "Location not found", ILI9341_RED);
+    PrinInfo(1, "on SD card.", ILI9341_RED);
+    PrinInfo(2, "", ILI9341_RED);
+    PrinInfo(3, "Data will be downloaded", ILI9341_RED);
+    PrinInfo(4, "from API shortly.", ILI9341_RED);
+    PrinInfo(5, "", ILI9341_RED);
+    PrinInfo(6, "", ILI9341_RED);
+    PrinInfo(7, "", ILI9341_RED);
   }
   else
   {
@@ -272,9 +284,9 @@ bool UpdateLocationDataOnScreen(int locationIndex, String *locationDataJson, int
       PrintData(2, "Water temp.:", waterTempCString, "C", waterTempCColor);
       PrintData(3, "E-coli:", eColiConcentrationString, "C/sa", eColiConcentrationColor);
       PrintData(4, "Bac. threshold:", bacteriaThresholdString, "", bacteriaThresholdColor);
-      PrintData(5, "Station types:", stationTypes[stationTypeIndex], "", ILI9341_WHITE);
-      PrintData(6, "Date Retrieved:", "", "", ILI9341_WHITE);
-      PrintData(7, lastModifedBuf, "", "", ILI9341_GREEN);
+      PrintData(5, "Station types:", stationTypes[stationTypeIndex], "", ILI9341_BLUE);
+      PrinInfo(6, "Date Retrieved:", ILI9341_WHITE);
+      PrinInfo(7, lastModifedBuf, ILI9341_RED);
     }
     else if (displayScreen == 1)
     {
@@ -574,13 +586,7 @@ void loop(void)
     oldSelectedLoctionIndex = selectedLoctionIndex;
 
     String locationDataJson;
-    if (GetJsonFromSDCard("/locations/" + String(selectedLoctionIndex), &locationDataJson))
-    {
-      unsigned long m = millis();
-      UpdateLocationDataOnScreen(selectedLoctionIndex, &locationDataJson, displayScreen);
-      Serial.printf("Time to print data: %u\n", millis() - m);
-    }
-    else
+    if (!GetJsonFromSDCard("/locations/" + String(selectedLoctionIndex), &locationDataJson))
     {
       // Check SD card for connectivity.
       String path = "/locations.json";
@@ -591,5 +597,9 @@ void loop(void)
       }
       file.close();
     }
+
+    unsigned long m = millis();
+    UpdateLocationDataOnScreen(selectedLoctionIndex, &locationDataJson, displayScreen);
+    Serial.printf("Time to print data: %u\n", millis() - m);
   }
 }
