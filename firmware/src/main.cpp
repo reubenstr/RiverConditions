@@ -43,8 +43,7 @@ enum LocationStatus
 // Order of location is order of LEDs.
 struct Location
 {
-  String usgs[10];       // USGS station IDs.
-  String wr[10];         // WaterReporter station IDs.
+  String stationIds[10]; // Station IDs.
   String shortName;      // Short name of location.
   String area;           // Name of general station area.
   LocationStatus status; // Status of the location.
@@ -154,22 +153,22 @@ bool PopulateLocationInitFromSDCard()
 
   for (int i = 0; i < numLocations; i++)
   {
-
-    for (int u = 0; u < doc["locations"][i]["USGS"].size(); u++)
+    for (int u = 0; u < doc["locations"][i]["stationIds"].size(); u++)
     {
-      locations[i].usgs[u] = doc["locations"][i]["USGS"][u].as<String>();
+      locations[i].stationIds[u] = doc["locations"][i]["WR"][u].as<String>();
     }
-
-    for (int u = 0; u < doc["locations"][i]["WR"].size(); u++)
-    {
-      locations[i].wr[u] = doc["locations"][i]["WR"][u].as<String>();
-    }
-
     locations[i].shortName = doc["locations"][i]["shortName"].as<String>();
     locations[i].area = doc["locations"][i]["area"].as<String>();
   }
 
   return true;
+}
+
+uint16_t safetyStringToColor(String str)
+{
+  uint16_t color = strcmp(str.c_str(), "N.A.") ? ILI9341_WHITE : strcmp(str.c_str(), "Fair") ? ILI9341_GREEN : strcmp(str.c_str(), "Caution") ? ILI9341_YELLOW : strcmp(str.c_str(), "Danger") ? ILI9341_RED : ILI9341_WHITE;
+
+  return color;
 }
 
 void PrintData(int line, const char *text, const char *value, const char *units, uint16_t color)
@@ -219,7 +218,7 @@ bool UpdateLocationDataOnScreen(int locationIndex, String *locationDataJson, int
     char locationString[50];
     sprintf(locationString, "(filename: %u.json, was not found.)", locationIndex);
 
-    PrinInfo(0, "Location not found", ILI9341_RED);
+    PrinInfo(0, "Location data not found", ILI9341_RED);
     PrinInfo(1, "on SD card.", ILI9341_RED);
     PrinInfo(2, "", ILI9341_RED);
     PrinInfo(3, "Data will be downloaded", ILI9341_RED);
@@ -231,62 +230,32 @@ bool UpdateLocationDataOnScreen(int locationIndex, String *locationDataJson, int
   else
   {
     // Get data from json.
-    signed int streamFlow = doc["data"]["streamFlow"]["value"].as<signed int>();
-    signed int gaugeHeight = doc["data"]["gaugeHeight"]["value"].as<signed int>();
-    signed int waterTempC = doc["data"]["waterTempC"]["value"].as<signed int>();
-    signed int eColiConcentration = doc["data"]["eColiConcentration"]["value"].as<signed int>();
-    signed int bacteriaThreshold = doc["data"]["bacteriaThreshold"]["value"].as<signed int>();
+    String usgsId = doc["station"]["usgsId"].as<String>();
+    String wrId = doc["station"]["usgsId"].as<String>();
+    String streamFlow = doc["data"]["streamFlow"]["value"].as<String>();
+    String gaugeHeight = doc["data"]["gaugeHeight"]["value"].as<String>();
+    String waterTempC = doc["data"]["waterTempC"]["value"].as<String>();
+    String eColiConcentration = doc["data"]["eColiConcentration"]["value"].as<String>();
+    String bacteriaThreshold = doc["data"]["bacteriaThreshold"]["value"].as<String>();
     String lastModifed = doc["station"]["recordTime"];
 
     // Init displaying variables.
-    char streamFlowString[20];
-    sprintf(streamFlowString, "%i", streamFlow);
-    if (streamFlow == -9)
-      strcpy(streamFlowString, "N/A");
-    uint16_t streamFlowColor = streamFlow == -9 ? ILI9341_WHITE : streamFlow < 2000 ? ILI9341_GREEN : streamFlow < 4000 ? ILI9341_YELLOW : ILI9341_RED;
-
-    char gaugeHeightString[20];
-    sprintf(gaugeHeightString, "%i", gaugeHeight);
-    if (gaugeHeight == -9)
-      strcpy(gaugeHeightString, "N/A");
-    uint16_t gaugeHeightColor = gaugeHeight == -9 ? ILI9341_WHITE : gaugeHeight < 2 ? ILI9341_GREEN : gaugeHeight < 6 ? ILI9341_YELLOW : ILI9341_RED;
-
-    char waterTempCString[20];
-    sprintf(waterTempCString, "%i", waterTempC);
-    if (waterTempC == -9)
-      strcpy(waterTempCString, "N/A");
-    uint16_t waterTempCColor = waterTempC == -9 ? ILI9341_WHITE : waterTempC < 2 ? ILI9341_GREEN : waterTempC < 6 ? ILI9341_YELLOW : ILI9341_RED;
-
-    char eColiConcentrationString[20];
-    sprintf(eColiConcentrationString, "%i", eColiConcentration);
-    if (eColiConcentration == -9)
-      strcpy(eColiConcentrationString, "N/A");
-    uint16_t eColiConcentrationColor = eColiConcentration == -9 ? ILI9341_WHITE : eColiConcentration < 2 ? ILI9341_GREEN : eColiConcentration < 6 ? ILI9341_YELLOW : ILI9341_RED;
-
-    char bacteriaThresholdString[20];
-    sprintf(bacteriaThresholdString, "%i", bacteriaThreshold);
-    if (bacteriaThreshold == -9)
-      strcpy(bacteriaThresholdString, "N/A");
-    uint16_t bacteriaThresholdColor = bacteriaThreshold == -9 ? ILI9341_WHITE : bacteriaThreshold < 2 ? ILI9341_GREEN : bacteriaThreshold < 6 ? ILI9341_YELLOW : ILI9341_RED;
-
     const char stationTypes[4][9] = {"N/A     ", "USGS    ", "WR      ", "USGS, WR"};
-    int stationTypeIndex = !locations[locationIndex].usgs->isEmpty() && !locations[locationIndex].wr->isEmpty() ? 3 : !locations[locationIndex].usgs->isEmpty() ? 1 : !locations[locationIndex].wr->isEmpty() ? 2 : 0;
+    int stationTypeIndex = !usgsId.isEmpty() && !wrId.isEmpty() ? 3 : usgsId.isEmpty() ? 1 : wrId.isEmpty() ? 2 : 0;
 
     char lastModifedBuf[20];
     sprintf(lastModifedBuf, "%s  %s", lastModifed.substring(0, 10).c_str(), lastModifed.substring(11, 19).c_str());
 
-    // TODO CHECK FOR O/D data.
-
     if (displayScreen == 0)
     {
-      PrintData(0, "Stream Flow:", streamFlowString, "ft3/s", streamFlowColor);
-      PrintData(1, "Gauge Height:", gaugeHeightString, "ft", gaugeHeightColor);
-      PrintData(2, "Water temp.:", waterTempCString, "C", waterTempCColor);
-      PrintData(3, "E-coli:", eColiConcentrationString, "C/sa", eColiConcentrationColor);
-      PrintData(4, "Bac. threshold:", bacteriaThresholdString, "", bacteriaThresholdColor);
+      PrintData(0, "Stream Flow:", streamFlow.c_str(), "ft3/s", safetyStringToColor(doc["data"]["streamFlow"]["safety"].as<String>()));
+      PrintData(1, "Gauge Height:", gaugeHeight.c_str(), "ft", safetyStringToColor(doc["data"]["gaugeHeight"]["safety"].as<String>()));
+      PrintData(2, "Water temp.:", waterTempC.c_str(), "C", safetyStringToColor(doc["data"]["waterTempC"]["safety"].as<String>()));
+      PrintData(3, "E-coli:", eColiConcentration.c_str(), "C/sa", safetyStringToColor(doc["data"]["eColiConcentration"]["safety"].as<String>()));
+      PrintData(4, "Bac. threshold:", bacteriaThreshold.c_str(), "", safetyStringToColor(doc["data"]["bacteriaThreshold"]["safety"].as<String>()));
       PrintData(5, "Station types:", stationTypes[stationTypeIndex], "", ILI9341_BLUE);
       PrinInfo(6, "Date Retrieved:", ILI9341_WHITE);
-      PrinInfo(7, lastModifedBuf, ILI9341_RED);
+      PrinInfo(7, lastModifedBuf, ILI9341_WHITE);
     }
     else if (displayScreen == 1)
     {
