@@ -164,9 +164,9 @@ bool PopulateLocationInitFromSDCard()
   return true;
 }
 
-uint16_t safetyStringToColor(String str)
+uint16_t safetyStringToColor(const char * str)
 {
-  return str.equals("N.A.") ? ILI9341_WHITE : str.equals("Fair") ? ILI9341_GREEN : str.equals("Caution") ? ILI9341_YELLOW : str.equals("Danger") ? ILI9341_RED : ILI9341_WHITE;
+  return !strcmp(str, "N.A.") ? ILI9341_WHITE : !strcmp(str, "Fair") ? ILI9341_GREEN : !strcmp(str, "Caution") ? ILI9341_YELLOW : !strcmp(str, "Danger") ? ILI9341_RED : ILI9341_WHITE;
 }
 
 void PrintData(int line, const char *text, const char *value, const char *units, uint16_t color)
@@ -241,11 +241,11 @@ bool UpdateLocationDataOnScreen(int locationIndex, String *locationDataJson, int
 
     if (displayScreen == 0)
     {
-      PrintData(0, "Stream Flow:", doc["data"]["streamFlow"]["value"], "ft3/s", safetyStringToColor(doc["data"]["streamFlow"]["safety"].as<String>()));
-      PrintData(1, "Gauge Height:",doc["data"]["gaugeHeight"]["value"], "ft", safetyStringToColor(doc["data"]["gaugeHeight"]["safety"].as<String>()));
-      PrintData(2, "Water temp.:", doc["data"]["waterTempC"]["value"], "C", safetyStringToColor(doc["data"]["waterTempC"]["safety"].as<String>()));
-      PrintData(3, "E-coli:", doc["data"]["eColiConcentration"]["value"], "C/sa", safetyStringToColor(doc["data"]["eColiConcentration"]["safety"].as<String>()));
-      PrintData(4, "Bac. threshold:", doc["data"]["bacteriaThreshold"]["value"], "", safetyStringToColor(doc["data"]["bacteriaThreshold"]["safety"].as<String>()));
+      PrintData(0, "Stream Flow:", doc["data"]["streamFlow"]["value"], "ft3/s", safetyStringToColor(doc["data"]["streamFlow"]["safety"]));
+      PrintData(1, "Gauge Height:",doc["data"]["gaugeHeight"]["value"], "ft", safetyStringToColor(doc["data"]["gaugeHeight"]["safety"]));
+      PrintData(2, "Water temp.:", doc["data"]["waterTempC"]["value"], "C", safetyStringToColor(doc["data"]["waterTempC"]["safety"]));
+      PrintData(3, "E-coli:", doc["data"]["eColiConcentration"]["value"], "C/sa", safetyStringToColor(doc["data"]["eColiConcentration"]["safety"]));
+      PrintData(4, "Bac. threshold:", doc["data"]["bacteriaThreshold"]["value"], "", safetyStringToColor(doc["data"]["bacteriaThreshold"]["safety"]));
       PrintData(5, "Station types:", stationTypes[stationTypeIndex], "", ILI9341_BLUE);
       PrinInfo(6, "Date Retrieved:", ILI9341_WHITE);
       PrinInfo(7, lastModifedBuf, ILI9341_WHITE);
