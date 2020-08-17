@@ -1,3 +1,27 @@
+/*
+* James River Conditions Dashboard
+*
+* Retrieves river condition data from various API then displays
+* river safety indicators on a physical graphical map using LEDs
+* as testing station locations.
+*
+* Reuben Strangelove
+* Summer 2020
+*
+* Calls custom API midpoint which collects station data
+* from two APIs endpoints (USGS and Water Reporter).
+* Due to the large and complex json reponse from the endpoints, 
+* The midpoint is reponsible for compressing the station data into 
+* a smaller json chunk (with minimal data manipulation).
+*
+*
+* MCU: ESP32 (ESP32 DEV KIT 1.0)
+* Extra hardware: ILI9341 tft display, generic SD-Card reader, WS2812b led strips
+*
+* Locations (containing one or more stations) are cached on the SD card.
+* Location parameters (name, area, station ids, etc.) are stored on the SD card: locations.json.
+*/
+
 #include <Arduino.h>
 #include <SPI.h>
 #include <Wire.h>
@@ -48,9 +72,9 @@ const int maxLocations = 50;
 struct Location
 {
   String stationIds[maxStationIds]; // Station IDs.
-  String shortName;      // Short name of location.
-  String area;           // Name of general station area.
-  LocationStatus status; // Status of the location.
+  String shortName;                 // Short name of location.
+  String area;                      // Name of general station area.
+  LocationStatus status;            // Status of the location.
 } locations[maxLocations];
 
 bool sdStatus = false;
@@ -111,9 +135,28 @@ bool InitSDCard()
   return true;
 }
 
+bool SaveDataToSDCard(int locationIndex, String data)
+{
+  String path = "/locations/" + String(locationIndex) + ".json";
+  Serial.printf("Writing file: %s\n", path.c_str());
+
+  File file = SD.open(path, FILE_WRITE);
+  if (!file)
+  {
+    Serial.println("Failed to open file for writing.");
+    return false;
+  }
+  if (!file.print(data))
+  {
+    Serial.println("Write failed.");
+    return false;
+  }
+  file.close();
+  return true;
+}
+
 bool GetJsonFromSDCard(String fileName, String *locationDataJson)
 {
-
   String path = "/" + fileName + ".json";
 
   Serial.print("Reading file: ");
@@ -375,26 +418,6 @@ void UpdateLocationIndicators()
   }
 }
 
-bool SaveJsonToSDCard(int locationIndex, String data)
-{
-  String path = "/cache/" + String(locationIndex) + ".json";
-  Serial.printf("Writing file: %s\n", path.c_str());
-
-  File file = SD.open(path, FILE_WRITE);
-  if (!file)
-  {
-    Serial.println("Failed to open file for writing.");
-    return false;
-  }
-  if (!file.print(data))
-  {
-    Serial.println("Write failed.");
-    return false;
-  }
-  file.close();
-  return true;
-}
-
 bool UpdateTime()
 {
   String payload;
@@ -442,14 +465,14 @@ bool UpdateTime()
 
 bool GetDataFromAPI(int loctionIndex)
 {
-  String payload; 
+  String payload;
   String host = "http://artofmystate.com/api/riverconditions.php?stationId=" + locations[loctionIndex].stationIds[0];
-  
-  for(int i = 1; i < maxStationIds; i++)
+
+  for (int i = 1; i < maxStationIds; i++)
   {
     if (!locations[loctionIndex].stationIds[i].isEmpty())
     {
-      host += "," + (host,locations[loctionIndex].stationIds[i]);
+      host += "," + (host, locations[loctionIndex].stationIds[i]);
     }
   }
 
@@ -494,7 +517,7 @@ bool GetDataFromAPI(int loctionIndex)
     return false;
   }
 
-  SaveJsonToSDCard(loctionIndex, payload);  
+  SaveDataToSDCard(loctionIndex, payload);
 
   return true;
 }
@@ -575,7 +598,7 @@ void loop(void)
   UpdateIndicators();
 
   UpdateLocationIndicators();
-
+  
   static int oldSelectedLoctionIndex;
   if (oldSelectedLoctionIndex != selectedLoctionIndex)
   {
