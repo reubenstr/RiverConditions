@@ -166,9 +166,7 @@ bool PopulateLocationInitFromSDCard()
 
 uint16_t safetyStringToColor(String str)
 {
-  uint16_t color = strcmp(str.c_str(), "N.A.") ? ILI9341_WHITE : strcmp(str.c_str(), "Fair") ? ILI9341_GREEN : strcmp(str.c_str(), "Caution") ? ILI9341_YELLOW : strcmp(str.c_str(), "Danger") ? ILI9341_RED : ILI9341_WHITE;
-
-  return color;
+  return str.equals("N.A.") ? ILI9341_WHITE : str.equals("Fair") ? ILI9341_GREEN : str.equals("Caution") ? ILI9341_YELLOW : str.equals("Danger") ? ILI9341_RED : ILI9341_WHITE;
 }
 
 void PrintData(int line, const char *text, const char *value, const char *units, uint16_t color)
@@ -231,12 +229,7 @@ bool UpdateLocationDataOnScreen(int locationIndex, String *locationDataJson, int
   {
     // Get data from json.
     String usgsId = doc["station"]["usgsId"].as<String>();
-    String wrId = doc["station"]["usgsId"].as<String>();
-    String streamFlow = doc["data"]["streamFlow"]["value"].as<String>();
-    String gaugeHeight = doc["data"]["gaugeHeight"]["value"].as<String>();
-    String waterTempC = doc["data"]["waterTempC"]["value"].as<String>();
-    String eColiConcentration = doc["data"]["eColiConcentration"]["value"].as<String>();
-    String bacteriaThreshold = doc["data"]["bacteriaThreshold"]["value"].as<String>();
+    String wrId = doc["station"]["wrId"].as<String>();
     String lastModifed = doc["station"]["recordTime"];
 
     // Init displaying variables.
@@ -248,11 +241,11 @@ bool UpdateLocationDataOnScreen(int locationIndex, String *locationDataJson, int
 
     if (displayScreen == 0)
     {
-      PrintData(0, "Stream Flow:", streamFlow.c_str(), "ft3/s", safetyStringToColor(doc["data"]["streamFlow"]["safety"].as<String>()));
-      PrintData(1, "Gauge Height:", gaugeHeight.c_str(), "ft", safetyStringToColor(doc["data"]["gaugeHeight"]["safety"].as<String>()));
-      PrintData(2, "Water temp.:", waterTempC.c_str(), "C", safetyStringToColor(doc["data"]["waterTempC"]["safety"].as<String>()));
-      PrintData(3, "E-coli:", eColiConcentration.c_str(), "C/sa", safetyStringToColor(doc["data"]["eColiConcentration"]["safety"].as<String>()));
-      PrintData(4, "Bac. threshold:", bacteriaThreshold.c_str(), "", safetyStringToColor(doc["data"]["bacteriaThreshold"]["safety"].as<String>()));
+      PrintData(0, "Stream Flow:", doc["data"]["streamFlow"]["value"], "ft3/s", safetyStringToColor(doc["data"]["streamFlow"]["safety"].as<String>()));
+      PrintData(1, "Gauge Height:",doc["data"]["gaugeHeight"]["value"], "ft", safetyStringToColor(doc["data"]["gaugeHeight"]["safety"].as<String>()));
+      PrintData(2, "Water temp.:", doc["data"]["waterTempC"]["value"], "C", safetyStringToColor(doc["data"]["waterTempC"]["safety"].as<String>()));
+      PrintData(3, "E-coli:", doc["data"]["eColiConcentration"]["value"], "C/sa", safetyStringToColor(doc["data"]["eColiConcentration"]["safety"].as<String>()));
+      PrintData(4, "Bac. threshold:", doc["data"]["bacteriaThreshold"]["value"], "", safetyStringToColor(doc["data"]["bacteriaThreshold"]["safety"].as<String>()));
       PrintData(5, "Station types:", stationTypes[stationTypeIndex], "", ILI9341_BLUE);
       PrinInfo(6, "Date Retrieved:", ILI9341_WHITE);
       PrinInfo(7, lastModifedBuf, ILI9341_WHITE);
