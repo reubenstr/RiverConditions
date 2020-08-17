@@ -11,6 +11,8 @@
 #include <Adafruit_NeoPixel.h>
 #include <Time.h>
 #include "utilities.h"
+#include "msTimer.h" // local library
+#include "flasher.h" // local library
 
 #define TFT_CS 5
 #define TFT_DC 2
@@ -41,22 +43,30 @@ enum LocationStatus
 
 // Location data contains IDs of associated stations.
 // Order of location is order of LEDs.
+const int maxStationIds = 10;
+const int maxLocations = 50;
 struct Location
 {
-  String stationIds[10]; // Station IDs.
+  String stationIds[maxStationIds]; // Station IDs.
   String shortName;      // Short name of location.
   String area;           // Name of general station area.
   LocationStatus status; // Status of the location.
-} locations[30];
+} locations[maxLocations];
 
 bool sdStatus = false;
 bool wifiStatus = false;
-bool apiStatus = false;
+bool timeApiStatus = false;
+bool dataApiStatus = false;
+
+String dataApiErrorDate;
+String dataApiErrorMessage;
 
 int numLocations;
 int selectedLoctionIndex;
 String currentTime;
 int displayScreen;
+
+String timeZone = "EST";
 
 const uint32_t OFF = 0x0000000;
 const uint32_t RED = 0x00FF0000;
@@ -81,12 +91,6 @@ void FatalError(String errorMsg)
   }
 }
 
-bool GetDataFromAPI(int stationID)
-{
-
-  return true;
-}
-
 bool InitSDCard()
 {
   int count = 0;
@@ -107,7 +111,7 @@ bool InitSDCard()
   return true;
 }
 
-bool GetJsonFromSDCard(String fileName, String *stationDataJson)
+bool GetJsonFromSDCard(String fileName, String *locationDataJson)
 {
 
   String path = "/" + fileName + ".json";
@@ -123,15 +127,14 @@ bool GetJsonFromSDCard(String fileName, String *stationDataJson)
     return false;
   }
 
-  *stationDataJson = file.readString();
+  *locationDataJson = file.readString();
 
   file.close();
   return true;
 }
 
-bool PopulateLocationInitFromSDCard()
+bool InitLocationsFromSDCard()
 {
-
   String stationInitDataJson;
 
   if (!GetJsonFromSDCard("locations", &stationInitDataJson))
@@ -155,7 +158,7 @@ bool PopulateLocationInitFromSDCard()
   {
     for (int u = 0; u < doc["locations"][i]["stationIds"].size(); u++)
     {
-      locations[i].stationIds[u] = doc["locations"][i]["WR"][u].as<String>();
+      locations[i].stationIds[u] = doc["locations"][i]["stationIds"][u].as<String>();
     }
     locations[i].shortName = doc["locations"][i]["shortName"].as<String>();
     locations[i].area = doc["locations"][i]["area"].as<String>();
@@ -164,7 +167,7 @@ bool PopulateLocationInitFromSDCard()
   return true;
 }
 
-uint16_t safetyStringToColor(const char * str)
+uint16_t safetyStringToColor(const char *str)
 {
   return !strcmp(str, "N.A.") ? ILI9341_WHITE : !strcmp(str, "Fair") ? ILI9341_GREEN : !strcmp(str, "Caution") ? ILI9341_YELLOW : !strcmp(str, "Danger") ? ILI9341_RED : ILI9341_WHITE;
 }
@@ -242,7 +245,7 @@ bool UpdateLocationDataOnScreen(int locationIndex, String *locationDataJson, int
     if (displayScreen == 0)
     {
       PrintData(0, "Stream Flow:", doc["data"]["streamFlow"]["value"], "ft3/s", safetyStringToColor(doc["data"]["streamFlow"]["safety"]));
-      PrintData(1, "Gauge Height:",doc["data"]["gaugeHeight"]["value"], "ft", safetyStringToColor(doc["data"]["gaugeHeight"]["safety"]));
+      PrintData(1, "Gauge Height:", doc["data"]["gaugeHeight"]["value"], "ft", safetyStringToColor(doc["data"]["gaugeHeight"]["safety"]));
       PrintData(2, "Water temp.:", doc["data"]["waterTempC"]["value"], "C", safetyStringToColor(doc["data"]["waterTempC"]["safety"]));
       PrintData(3, "E-coli:", doc["data"]["eColiConcentration"]["value"], "C/sa", safetyStringToColor(doc["data"]["eColiConcentration"]["safety"]));
       PrintData(4, "Bac. threshold:", doc["data"]["bacteriaThreshold"]["value"], "", safetyStringToColor(doc["data"]["bacteriaThreshold"]["safety"]));
@@ -343,14 +346,16 @@ void DisplayIndicator(String string, int x, int y, uint16_t color)
 void UpdateIndicators()
 {
   static int oldStatusSum = 5;
-  int statusSum = (int)sdStatus + (int)wifiStatus + (int)apiStatus;
+  int statusSum = (int)sdStatus + (int)wifiStatus + (int)dataApiStatus + (int)timeApiStatus;
 
   if (oldStatusSum != statusSum)
   {
     oldStatusSum = statusSum;
     DisplayIndicator("SD", 110, 215, sdStatus ? ILI9341_GREEN : ILI9341_RED);
     DisplayIndicator("WIFI", 165, 215, wifiStatus ? ILI9341_GREEN : ILI9341_RED);
-    DisplayIndicator("API", 260, 215, apiStatus ? ILI9341_GREEN : ILI9341_RED);
+
+    int apiVal = (int)dataApiStatus + (int)timeApiStatus;
+    DisplayIndicator("API", 260, 215, apiVal == 0 ? ILI9341_RED : apiVal == 1 ? ILI9341_YELLOW : apiVal == 2 ? ILI9341_GREEN : ILI9341_BLUE);
   }
 }
 
@@ -370,6 +375,130 @@ void UpdateLocationIndicators()
   }
 }
 
+bool SaveJsonToSDCard(int locationIndex, String data)
+{
+  String path = "/cache/" + String(locationIndex) + ".json";
+  Serial.printf("Writing file: %s\n", path.c_str());
+
+  File file = SD.open(path, FILE_WRITE);
+  if (!file)
+  {
+    Serial.println("Failed to open file for writing.");
+    return false;
+  }
+  if (!file.print(data))
+  {
+    Serial.println("Write failed.");
+    return false;
+  }
+  file.close();
+  return true;
+}
+
+bool UpdateTime()
+{
+  String payload;
+  String host = "http://worldclockapi.com/api/json/" + timeZone + "/now";
+
+  Serial.print("Connecting to ");
+  Serial.println(host);
+
+  HTTPClient http;
+  http.begin(host);
+  int httpCode = http.GET();
+
+  if (httpCode > 0)
+  {
+    Serial.print("HTTP code: ");
+    Serial.println(httpCode);
+    Serial.println("[RESPONSE]");
+    payload = http.getString();
+    Serial.println(payload);
+    http.end();
+  }
+  else
+  {
+    Serial.print("Connection failed, HTTP client code: ");
+    Serial.println(httpCode);
+    http.end();
+    return false;
+  }
+
+  DynamicJsonDocument doc(2048);
+  DeserializationError error = deserializeJson(doc, payload);
+
+  if (error)
+  {
+    Serial.print(F("DeserializeJson() failed: "));
+    Serial.println(error.c_str());
+    return false;
+  }
+
+  String currentTime = doc["currentDateTime"];
+  Serial.printf("Current time: %s", currentTime.c_str());
+
+  return true;
+}
+
+bool GetDataFromAPI(int loctionIndex)
+{
+  String payload; 
+  String host = "http://artofmystate.com/api/riverconditions.php?stationId=" + locations[loctionIndex].stationIds[0];
+  
+  for(int i = 1; i < maxStationIds; i++)
+  {
+    if (!locations[loctionIndex].stationIds[i].isEmpty())
+    {
+      host += "," + (host,locations[loctionIndex].stationIds[i]);
+    }
+  }
+
+  Serial.print("Connecting to ");
+  Serial.println(host);
+
+  HTTPClient http;
+  http.begin(host);
+  int httpCode = http.GET();
+
+  if (httpCode > 0)
+  {
+    Serial.print("HTTP code: ");
+    Serial.println(httpCode);
+    Serial.println("[RESPONSE]");
+    payload = http.getString();
+    Serial.println(payload);
+    http.end();
+  }
+  else
+  {
+    Serial.print("Connection failed, HTTP client code: ");
+    Serial.println(httpCode);
+    http.end();
+    return false;
+  }
+
+  DynamicJsonDocument doc(2048);
+  DeserializationError error = deserializeJson(doc, payload);
+
+  if (error)
+  {
+    Serial.print(F("DeserializeJson() failed: "));
+    Serial.println(error.c_str());
+    return false;
+  }
+
+  if (!doc["error"].isNull())
+  {
+    dataApiErrorDate = doc["date"].as<String>();
+    dataApiErrorMessage = doc["message"].as<String>();
+    return false;
+  }
+
+  SaveJsonToSDCard(loctionIndex, payload);  
+
+  return true;
+}
+
 void setup()
 {
   Serial.begin(115200);
@@ -384,10 +513,6 @@ void setup()
   tft.fillScreen(ILI9341_BLACK);
   tft.setRotation(3);
 
-  DisplayLayout();
-
-  UpdateIndicators();
-
   if (!InitSDCard())
   {
     FatalError("Unable to init SD card.");
@@ -397,14 +522,17 @@ void setup()
     sdStatus = true;
   }
 
-  if (!PopulateLocationInitFromSDCard())
+  if (!InitLocationsFromSDCard())
   {
     FatalError("Failed to get location init data.\n(locations.json required)");
   }
 
+  DisplayLayout();
+
+  UpdateIndicators();
+
   UpdateLocationIndicators();
 
-  /*
   Serial.print("Connecting to ");
   Serial.println(ssid);
 
@@ -420,121 +548,28 @@ void setup()
   Serial.println("WiFi connected");
   Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
-
-
-  HTTPClient http;
-  http.begin("https://stations.waterreporter.org/19656/supplement.json"); //Specify destination for HTTP request
-
-http.useHTTP10(true);
-
-  int httpResponseCode = http.GET();
-
-  Serial.print("HTTP CODE: ");
-  Serial.println(httpResponseCode);
-
-  if (httpResponseCode == 200)
-  {
-
-    Serial.print("Size: ");
-    Serial.println(http.getSize());
-
-Stream& response = http.getStream();
-
-    DynamicJsonDocument doc(2048);
-
-deserializeJson(doc, response);
-
-    String stationName = doc["station"]["name"];
-    Serial.println(stationName);
-
-  }
-
-  http.end();
-  */
-
-  /*
-// Walk the JsonArray efficiently
-for (JsonObject& elem : arr) {
-JsonObject& forecast = elem["item"]["forecast"];
-}
-*/
-
-  //String payload = http.getString();
-  //payload = http.getString();
-  //http.end();
-
-  /*
-    DynamicJsonDocument doc(850000);
-    DeserializationError error = deserializeJson(doc, http.getString());
-    if (error)
-    {
-        Serial.print(F("DeserializeJson() failed: "));
-        Serial.println(error.c_str());
-       // return false;
-    }
-    String stationName = doc["station"]["name"];
-  Serial.println(stationName);
-  */
-
-  /*
- 
-  WiFiClient client;
-
-  const int httpPort = 80;
-  const char *host = "https://stations.waterreporter.org/19656/supplement.json";
-
-  if (!client.connect(host, httpPort))
-  {
-    Serial.println("connection failed");
-    return;
-  }
-
-  String url = "/19656/supplement.json";
-
-  Serial.print("[Requesting URL: ");
-  Serial.print(url);
-  Serial.println("]");
-
-  client.print(String("GET ") + url + " HTTP/1.1\r\n" +
-               "Host: " + host + "\r\n" +
-               "Connection: close\r\n\r\n");
-
-  unsigned long timeout = millis();
-
-  while (client.available() == 0)
-  {
-    if (millis() - timeout > 5000)
-    {
-      Serial.println(">>> Client Timeout !");
-      client.stop();
-    }
-  }
-
-  // Read all the lines of the reply from server and print them to Serial
-  Serial.println("[RESPONSE]\n");
-  while (client.available())
-  {
-    String line = client.readStringUntil('\r');
-    Serial.print(line);
-  }
-
-  Serial.println();
-  Serial.println("[closing connection]");
-
-*/
 }
 
 void loop(void)
 {
 
-  // TEMP TEMP TEMP
-  currentTime = "2020-08-15T19:15:00.000-04:00";
+  static msTimer timerApi(5000);
+  static msTimer timerTime(0);
 
-  delay(1000);
-
-  if (++selectedLoctionIndex > numLocations - 1)
+  if (timerTime.elapsed())
   {
-    selectedLoctionIndex = 0;
+    timerTime.setDelay(60000);
+    timeApiStatus = UpdateTime();
+  }
+
+  if (timerApi.elapsed())
+  {
+    dataApiStatus = GetDataFromAPI(selectedLoctionIndex);
+
+    if (++selectedLoctionIndex > numLocations - 1)
+    {
+      selectedLoctionIndex = 0;
+    }
   }
 
   UpdateIndicators();
@@ -542,7 +577,6 @@ void loop(void)
   UpdateLocationIndicators();
 
   static int oldSelectedLoctionIndex;
-
   if (oldSelectedLoctionIndex != selectedLoctionIndex)
   {
     oldSelectedLoctionIndex = selectedLoctionIndex;
