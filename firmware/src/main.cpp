@@ -472,7 +472,7 @@ bool GetDataFromAPI(int loctionIndex)
   {
     if (!locations[loctionIndex].stationIds[i].isEmpty())
     {
-      host += "," + (host, locations[loctionIndex].stationIds[i]);
+      host += "," + locations[loctionIndex].stationIds[i];
     }
   }
 
@@ -619,6 +619,6 @@ void loop(void)
 
     unsigned long m = millis();
     UpdateLocationDataOnScreen(selectedLoctionIndex, &locationDataJson, displayScreen);
-    Serial.printf("Time to print data: %u\n", millis() - m);
+    Serial.printf("Time to print data on tft: %ums\n", (unsigned int)(millis() - m));
   }
 }

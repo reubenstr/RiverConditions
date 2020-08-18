@@ -1,0 +1,6 @@
+USGS Map:
+https://viewer.nationalmap.gov/basic/
+zoom: 10km/5m (lower right)
+
+Water measurements sites map:
+https://maps.waterdata.usgs.gov/mapper/index.html
