@@ -576,6 +576,25 @@ void setup()
 void loop(void)
 {
 
+  /* Fair, Caution, Danger, No Data
+
+  Fair:
+  Bacteria below threshold.
+  Streamflow below threshold.
+  
+
+  Caution:
+  Bacteria above fair threshold.
+  Streamflow above fair threshold.
+  Any two in the caution area triggers a caution.
+
+  Danger:
+  Bacteria above caution threshold.
+  Streamflow above caution threshold.
+  AAny two in the danger area triggers a danger.
+
+*/
+
   static msTimer timerApi(5000);
   static msTimer timerTime(0);
 
@@ -598,7 +617,7 @@ void loop(void)
   UpdateIndicators();
 
   UpdateLocationIndicators();
-  
+
   static int oldSelectedLoctionIndex;
   if (oldSelectedLoctionIndex != selectedLoctionIndex)
   {
