@@ -29,28 +29,39 @@
 #include <Adafruit_ILI9341.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
-#include "ArduinoJson.h"
+#include <ArduinoJson.h>
 #include <SPI.h>
 #include <SD.h>
 #include <Adafruit_NeoPixel.h>
-#include <Time.h>
 #include "utilities.h"
 #include "msTimer.h" // local library
 #include "flasher.h" // local library
 
+#include <TFT_eSPI.h> // https://github.com/Bodmer/TFT_eSPI
+
+/*
+
+#define ILI9488_DRIVER 
+#define TFT_WIDTH  320
+#define TFT_HEIGHT 480
 #define TFT_CS 5
 #define TFT_DC 2
-#define TFT_CLK 18
+#define TFT_SCLK 18
 #define TFT_MOSI 23
-#define TFT_MISO -1
+#define TFT_MISO 19
 #define TFT_RST 4
+*/
+
 #define SD_CHIP_SELECT 22
 #define PIN_STRIP_LOCATIONS 15
 
 const int numLedLocations = 30;
 const int daysDataIsValid = 7;
+const int textIndent = 15;
+const int textStatusY = 290;
 
-Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_RST);
+//Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_RST);
+TFT_eSPI tft = TFT_eSPI();
 
 Adafruit_NeoPixel stripLocations = Adafruit_NeoPixel(numLedLocations, PIN_STRIP_LOCATIONS, NEO_GRB + NEO_KHZ800);
 
@@ -112,6 +123,103 @@ void FatalError(String errorMsg)
 
   while (1)
   {
+  }
+}
+
+void charBounds(char c, int16_t *x, int16_t *y,
+                int16_t *minx, int16_t *miny, int16_t *maxx, int16_t *maxy)
+{
+
+  if (!true)
+  { //If non-default font is used not usable in my quick "hack"
+
+    //if (c == '\n') { // Newline?
+    //	*x = 0;    // Reset x to zero, advance y by one line
+    //	*y += textsize * (uint8_t)pgm_read_byte(&gfxFont->yAdvance);
+    //}
+    //else if (c != '\r') { // Not a carriage return; is normal char
+    //	uint8_t first = pgm_read_byte(&gfxFont->first),
+    //		last = pgm_read_byte(&gfxFont->last);
+    //	if ((c >= first) && (c <= last)) { // Char present in this font?
+    //		GFXglyph *glyph = &(((GFXglyph *)pgm_read_pointer(
+    //			&gfxFont->glyph))[c - first]);
+    //		uint8_t gw = pgm_read_byte(&glyph->width),
+    //			gh = pgm_read_byte(&glyph->height),
+    //			xa = pgm_read_byte(&glyph->xAdvance);
+    //		int8_t  xo = pgm_read_byte(&glyph->xOffset),
+    //			yo = pgm_read_byte(&glyph->yOffset);
+    //		if (wrap && ((*x + (((int16_t)xo + gw)*textsize)) > _width)) {
+    //			*x = 0; // Reset x to zero, advance y by one line
+    //			*y += textsize * (uint8_t)pgm_read_byte(&gfxFont->yAdvance);
+    //		}
+    //		int16_t ts = (int16_t)textsize,
+    //			x1 = *x + xo * ts,
+    //			y1 = *y + yo * ts,
+    //			x2 = x1 + gw * ts - 1,
+    //			y2 = y1 + gh * ts - 1;
+    //		if (x1 < *minx) *minx = x1;
+    //		if (y1 < *miny) *miny = y1;
+    //		if (x2 > *maxx) *maxx = x2;
+    //		if (y2 > *maxy) *maxy = y2;
+    //		*x += xa * ts;
+    //	}
+    //}
+  }
+  else
+  { // Default font
+
+    if (c == '\n')
+    {                         // Newline?
+      *x = 0;                 // Reset x to zero,
+      *y += tft.textsize * 8; // advance y one line
+                              // min/max x/y unchaged -- that waits for next 'normal' character
+    }
+    else if (c != '\r')
+    { // Normal char; ignore carriage returns
+      if (/*wrap*/ false && ((*x + tft.textsize * 6) > tft.width()))
+      {                         // Off right?
+        *x = 0;                 // Reset x to zero,
+        *y += tft.textsize * 8; // advance y one line
+      }
+      int x2 = *x + tft.textsize * 6 - 1, // Lower-right pixel of char
+          y2 = *y + tft.textsize * 8 - 1;
+      if (x2 > *maxx)
+        *maxx = x2; // Track max x, y
+      if (y2 > *maxy)
+        *maxy = y2;
+      if (*x < *minx)
+        *minx = *x; // Track min x, y
+      if (*y < *miny)
+        *miny = *y;
+      *x += tft.textsize * 6; // Advance x one char
+    }
+  }
+}
+
+// Solution provided by : https://github.com/Bodmer/TFT_eSPI/issues/6
+void getTextBounds(const char *str, int16_t x, int16_t y,
+                   int16_t *x1, int16_t *y1, uint16_t *w, uint16_t *h)
+{
+  uint8_t c; // Current character
+
+  *x1 = x;
+  *y1 = y;
+  *w = *h = 0;
+
+  int16_t minx = tft.width(), miny = tft.width(), maxx = -1, maxy = -1;
+
+  while ((c = *str++))
+    charBounds(c, &x, &y, &minx, &miny, &maxx, &maxy);
+
+  if (maxx >= minx)
+  {
+    *x1 = minx;
+    *w = maxx - minx + 1;
+  }
+  if (maxy >= miny)
+  {
+    *y1 = miny;
+    *h = maxy - miny + 1;
   }
 }
 
@@ -218,10 +326,10 @@ uint16_t safetyStringToColor(const char *str)
 void PrintData(int line, const char *text, const char *value, const char *units, uint16_t color)
 {
   tft.setTextSize(2);
-  tft.setCursor(5, 63 + line * 18);
+  tft.setCursor(textIndent, 85 + line * 20);
 
   tft.setTextColor(ILI9341_WHITE, ILI9341_BLACK);
-  tft.printf("%-*s", 15, text);
+  tft.printf("%-*s", 20, text);
 
   tft.setTextColor(color, ILI9341_BLACK);
   tft.printf("%-*s", 5, value);
@@ -233,7 +341,7 @@ void PrintData(int line, const char *text, const char *value, const char *units,
 void PrinInfo(int line, const char *text, uint16_t color)
 {
   tft.setTextSize(2);
-  tft.setCursor(5, 63 + line * 18);
+  tft.setCursor(textIndent, 85 + line * 20);
 
   tft.setTextColor(color, ILI9341_BLACK);
   tft.printf("%-*s", 25, text);
@@ -243,10 +351,10 @@ bool UpdateLocationDataOnScreen(int locationIndex, String *locationDataJson, int
 {
   tft.setTextSize(3);
   tft.setTextColor(ILI9341_WHITE, ILI9341_BLACK);
-  tft.setCursor(5, 5);
-  tft.printf("%-17s", locations[locationIndex].shortName.c_str());
-  tft.setCursor(5, 30);
-  tft.printf("%-17s", locations[locationIndex].area.c_str());
+  tft.setCursor(textIndent, 15);
+  tft.printf("%-26s", locations[locationIndex].shortName.c_str());
+  tft.setCursor(textIndent, 45);
+  tft.printf("%-26s", locations[locationIndex].area.c_str());
 
   tft.setTextSize(2);
   tft.setTextColor(ILI9341_GREEN, ILI9341_BLACK);
@@ -283,17 +391,16 @@ bool UpdateLocationDataOnScreen(int locationIndex, String *locationDataJson, int
     int stationTypeIndex = !usgsId.isEmpty() && !wrId.isEmpty() ? 3 : usgsId.isEmpty() ? 1 : wrId.isEmpty() ? 2 : 0;
 
     char lastModifedBuf[20];
-    sprintf(lastModifedBuf, "%s  %s", lastModifed.substring(0, 10).c_str(), lastModifed.substring(11, 19).c_str());
+    sprintf(lastModifedBuf, "Date Retrieved: %s  %s", lastModifed.substring(0, 10).c_str(), lastModifed.substring(11, 19).c_str());
 
     if (displayScreen == 0)
     {
       PrintData(0, "Stream Flow:", doc["data"]["streamFlow"]["value"], "ft3/s", safetyStringToColor(doc["data"]["streamFlow"]["safety"]));
       PrintData(1, "Gauge Height:", doc["data"]["gaugeHeight"]["value"], "ft", safetyStringToColor(doc["data"]["gaugeHeight"]["safety"]));
-      PrintData(2, "Water temp.:", doc["data"]["waterTempC"]["value"], "C", safetyStringToColor(doc["data"]["waterTempC"]["safety"]));
+      PrintData(2, "Water temperature:", doc["data"]["waterTempC"]["value"], "C", safetyStringToColor(doc["data"]["waterTempC"]["safety"]));
       PrintData(3, "E-coli:", doc["data"]["eColiConcentration"]["value"], "C/sa", safetyStringToColor(doc["data"]["eColiConcentration"]["safety"]));
-      PrintData(4, "Bac. threshold:", doc["data"]["bacteriaThreshold"]["value"], "", safetyStringToColor(doc["data"]["bacteriaThreshold"]["safety"]));
-      PrintData(5, "Station types:", stationTypes[stationTypeIndex], "", ILI9341_BLUE);
-      PrinInfo(6, "Date Retrieved:", ILI9341_WHITE);
+      PrintData(4, "Bacteria threshold:", doc["data"]["bacteriaThreshold"]["value"], "", safetyStringToColor(doc["data"]["bacteriaThreshold"]["safety"]));
+      PrintData(6, "Station types:", stationTypes[stationTypeIndex], "", ILI9341_BLUE);
       PrinInfo(7, lastModifedBuf, ILI9341_WHITE);
     }
     else if (displayScreen == 1)
@@ -358,31 +465,47 @@ void DisplayLayout()
 {
   int w = tft.width() - 1;
   int h = tft.height() - 1;
+  int t = 5;
 
-  tft.drawLine(0, 0, w, 0, ILI9341_BLUE);
-  tft.drawLine(w, 0, w, h, ILI9341_BLUE);
-  tft.drawLine(w, h, 0, h, ILI9341_BLUE);
-  tft.drawLine(0, h, 0, 0, ILI9341_BLUE);
+  // Perimeter
+  tft.fillRect(0, 0, w, t, ILI9341_BLUE);
 
-  tft.drawLine(0, 55, w, 55, ILI9341_BLUE);
-  tft.drawLine(0, 205, w, 205, ILI9341_BLUE);
+  tft.fillRect(w - t, 0, w, h, ILI9341_BLUE);
+
+  tft.fillRect(0, h - t, tft.width(), 5, ILI9341_BLUE);
+
+  tft.fillRect(0, 0, 0 + t, h, ILI9341_BLUE);
+
+  // Lines across.
+  tft.fillRect(0, 73, tft.width(), 5, ILI9341_BLUE);
+  tft.fillRect(0, 280, tft.width(), 5, ILI9341_BLUE);
+
+  // tft.drawLine(0, 0, w, 0, ILI9341_BLUE);
+  ///tft.drawLine(w, 0, w, h, ILI9341_BLUE);
+  //tft.drawLine(w, h, 0, h, ILI9341_BLUE);
+  // tft.drawLine(0, h, 0, 0, ILI9341_BLUE);
+
+  //tft.drawLine(0, 55, w, 55, ILI9341_BLUE);
+  //tft.drawLine(0, 205, w, 205, ILI9341_BLUE);
 
   tft.setTextSize(2);
-  tft.setCursor(10, 215);
+  tft.setCursor(textIndent, textStatusY);
   tft.setTextColor(ILI9341_WHITE);
-  tft.print("Status:");
+  tft.print("System Status:");
 }
 
 void DisplayIndicator(String string, int x, int y, uint16_t color)
 {
   int16_t x1, y1;
   uint16_t w, h;
-  const int offset = 3;
+  const int offset = 2;
   tft.setTextSize(2);
   tft.setCursor(x, y);
-  tft.getTextBounds(string, x, y, &x1, &y1, &w, &h);
+
+  getTextBounds(string.c_str(), x, y, &x1, &y1, &w, &h);
   tft.fillRect(x - offset, y - offset, w + offset, h + offset, color);
-  tft.setTextColor(ILI9341_BLACK);
+  tft.setTextPadding(5);
+  tft.setTextColor(ILI9341_BLACK, color);
   tft.print(string);
 }
 
@@ -394,11 +517,11 @@ void UpdateIndicators()
   if (oldStatusSum != statusSum)
   {
     oldStatusSum = statusSum;
-    DisplayIndicator("SD", 110, 215, sdStatus ? ILI9341_GREEN : ILI9341_RED);
-    DisplayIndicator("WIFI", 165, 215, wifiStatus ? ILI9341_GREEN : ILI9341_RED);
-
     int apiVal = (int)dataApiStatus + (int)timeApiStatus;
-    DisplayIndicator("API", 260, 215, apiVal == 0 ? ILI9341_RED : apiVal == 1 ? ILI9341_YELLOW : apiVal == 2 ? ILI9341_GREEN : ILI9341_BLUE);
+
+    DisplayIndicator("SD", 170, textStatusY, sdStatus ? ILI9341_GREEN : ILI9341_RED);
+    DisplayIndicator("WIFI", 250, textStatusY, wifiStatus ? ILI9341_GREEN : ILI9341_RED);
+    DisplayIndicator("API", 320, textStatusY, apiVal == 0 ? ILI9341_RED : apiVal == 1 ? ILI9341_YELLOW : apiVal == 2 ? ILI9341_GREEN : ILI9341_BLUE);
   }
 }
 
