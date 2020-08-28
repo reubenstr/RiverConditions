@@ -58,7 +58,7 @@
 const int numLedLocations = 30;
 const int daysDataIsValid = 7;
 const int textIndent = 15;
-const int textStatusY = 290;
+const int textStatusY = 293;
 
 //Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_RST);
 TFT_eSPI tft = TFT_eSPI();
@@ -326,7 +326,7 @@ uint16_t safetyStringToColor(const char *str)
 void PrintData(int line, const char *text, const char *value, const char *units, uint16_t color)
 {
   tft.setTextSize(2);
-  tft.setCursor(textIndent, 85 + line * 20);
+  tft.setCursor(textIndent, 87 + line * 21);
 
   tft.setTextColor(ILI9341_WHITE, ILI9341_BLACK);
   tft.printf("%-*s", 20, text);
@@ -341,7 +341,7 @@ void PrintData(int line, const char *text, const char *value, const char *units,
 void PrinInfo(int line, const char *text, uint16_t color)
 {
   tft.setTextSize(2);
-  tft.setCursor(textIndent, 85 + line * 20);
+  tft.setCursor(textIndent, 87 + line * 21);
 
   tft.setTextColor(color, ILI9341_BLACK);
   tft.printf("%-*s", 25, text);
@@ -351,10 +351,10 @@ bool UpdateLocationDataOnScreen(int locationIndex, String *locationDataJson, int
 {
   tft.setTextSize(3);
   tft.setTextColor(ILI9341_WHITE, ILI9341_BLACK);
-  tft.setCursor(textIndent, 15);
-  tft.printf("%-26s", locations[locationIndex].shortName.c_str());
-  tft.setCursor(textIndent, 45);
-  tft.printf("%-26s", locations[locationIndex].area.c_str());
+  tft.setCursor(textIndent, 14);
+  tft.printf("%-24s", locations[locationIndex].shortName.c_str());
+  tft.setCursor(textIndent, 44);
+  tft.printf("%-24s", locations[locationIndex].area.c_str());
 
   tft.setTextSize(2);
   tft.setTextColor(ILI9341_GREEN, ILI9341_BLACK);
@@ -390,8 +390,10 @@ bool UpdateLocationDataOnScreen(int locationIndex, String *locationDataJson, int
     const char stationTypes[4][9] = {"N/A     ", "USGS    ", "WR      ", "USGS, WR"};
     int stationTypeIndex = !usgsId.isEmpty() && !wrId.isEmpty() ? 3 : usgsId.isEmpty() ? 1 : wrId.isEmpty() ? 2 : 0;
 
-    char lastModifedBuf[20];
-    sprintf(lastModifedBuf, "Date Retrieved: %s  %s", lastModifed.substring(0, 10).c_str(), lastModifed.substring(11, 19).c_str());
+    char lastModifedDateBuf[20];
+    sprintf(lastModifedDateBuf, "%s", lastModifed.substring(0, 10).c_str());
+    char lastModifedTimeBuf[20];
+    sprintf(lastModifedTimeBuf, "%s", lastModifed.substring(11, 19).c_str());
 
     if (displayScreen == 0)
     {
@@ -401,7 +403,11 @@ bool UpdateLocationDataOnScreen(int locationIndex, String *locationDataJson, int
       PrintData(3, "E-coli:", doc["data"]["eColiConcentration"]["value"], "C/sa", safetyStringToColor(doc["data"]["eColiConcentration"]["safety"]));
       PrintData(4, "Bacteria threshold:", doc["data"]["bacteriaThreshold"]["value"], "", safetyStringToColor(doc["data"]["bacteriaThreshold"]["safety"]));
       PrintData(6, "Station types:", stationTypes[stationTypeIndex], "", ILI9341_BLUE);
-      PrinInfo(7, lastModifedBuf, ILI9341_WHITE);
+     // PrinInfo(7, lastModifedBuf, ILI9341_WHITE);
+
+  PrintData(7, "Date Retrieved:", lastModifedDateBuf, "", ILI9341_WHITE);
+  PrintData(8, "", lastModifedTimeBuf, "", ILI9341_WHITE);
+
     }
     else if (displayScreen == 1)
     {
@@ -469,24 +475,13 @@ void DisplayLayout()
 
   // Perimeter
   tft.fillRect(0, 0, w, t, ILI9341_BLUE);
-
   tft.fillRect(w - t, 0, w, h, ILI9341_BLUE);
-
   tft.fillRect(0, h - t, tft.width(), 5, ILI9341_BLUE);
-
   tft.fillRect(0, 0, 0 + t, h, ILI9341_BLUE);
 
   // Lines across.
   tft.fillRect(0, 73, tft.width(), 5, ILI9341_BLUE);
   tft.fillRect(0, 280, tft.width(), 5, ILI9341_BLUE);
-
-  // tft.drawLine(0, 0, w, 0, ILI9341_BLUE);
-  ///tft.drawLine(w, 0, w, h, ILI9341_BLUE);
-  //tft.drawLine(w, h, 0, h, ILI9341_BLUE);
-  // tft.drawLine(0, h, 0, 0, ILI9341_BLUE);
-
-  //tft.drawLine(0, 55, w, 55, ILI9341_BLUE);
-  //tft.drawLine(0, 205, w, 205, ILI9341_BLUE);
 
   tft.setTextSize(2);
   tft.setCursor(textIndent, textStatusY);
@@ -519,9 +514,9 @@ void UpdateIndicators()
     oldStatusSum = statusSum;
     int apiVal = (int)dataApiStatus + (int)timeApiStatus;
 
-    DisplayIndicator("SD", 170, textStatusY, sdStatus ? ILI9341_GREEN : ILI9341_RED);
-    DisplayIndicator("WIFI", 250, textStatusY, wifiStatus ? ILI9341_GREEN : ILI9341_RED);
-    DisplayIndicator("API", 320, textStatusY, apiVal == 0 ? ILI9341_RED : apiVal == 1 ? ILI9341_YELLOW : apiVal == 2 ? ILI9341_GREEN : ILI9341_BLUE);
+    DisplayIndicator("SD", 200, textStatusY, sdStatus ? ILI9341_GREEN : ILI9341_RED);
+    DisplayIndicator("WIFI", 255, textStatusY, wifiStatus ? ILI9341_GREEN : ILI9341_RED);
+    DisplayIndicator("API", 335, textStatusY, apiVal == 0 ? ILI9341_RED : apiVal == 1 ? ILI9341_YELLOW : apiVal == 2 ? ILI9341_GREEN : ILI9341_BLUE);
   }
 }
 
