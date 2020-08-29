@@ -40,7 +40,9 @@
 #include <TFT_eSPI.h> // https://github.com/Bodmer/TFT_eSPI
 
 /*
-
+The following defines are required for the TFT_eSPI library.
+The are to be placed in the library's User_Setup.h.
+Remove conflicting defines.
 #define ILI9488_DRIVER 
 #define TFT_WIDTH  320
 #define TFT_HEIGHT 480
@@ -324,9 +326,12 @@ uint16_t safetyStringToColor(const char *str)
 }
 
 void PrintData(int line, const char *text, const char *value, const char *units, uint16_t color)
-{
+{ 
+
+ int spaces = strlen(value) > 5 ? 9 - (strlen(value) - 5) : 9;
+
   tft.setTextSize(2);
-  tft.setCursor(textIndent, 87 + line * 21);
+  tft.setCursor(textIndent, 87 + line * 21);  
 
   tft.setTextColor(ILI9341_WHITE, ILI9341_BLACK);
   tft.printf("%-*s", 20, text);
@@ -335,7 +340,7 @@ void PrintData(int line, const char *text, const char *value, const char *units,
   tft.printf("%-*s", 5, value);
 
   tft.setTextColor(ILI9341_WHITE, ILI9341_BLACK);
-  tft.printf("%-*s", 5, units);
+  tft.printf("%-*s", spaces, strcmp(value, "N.A.") == 0 ? "" : units);
 }
 
 void PrinInfo(int line, const char *text, uint16_t color)
@@ -400,14 +405,11 @@ bool UpdateLocationDataOnScreen(int locationIndex, String *locationDataJson, int
       PrintData(0, "Stream Flow:", doc["data"]["streamFlow"]["value"], "ft3/s", safetyStringToColor(doc["data"]["streamFlow"]["safety"]));
       PrintData(1, "Gauge Height:", doc["data"]["gaugeHeight"]["value"], "ft", safetyStringToColor(doc["data"]["gaugeHeight"]["safety"]));
       PrintData(2, "Water temperature:", doc["data"]["waterTempC"]["value"], "C", safetyStringToColor(doc["data"]["waterTempC"]["safety"]));
-      PrintData(3, "E-coli:", doc["data"]["eColiConcentration"]["value"], "C/sa", safetyStringToColor(doc["data"]["eColiConcentration"]["safety"]));
-      PrintData(4, "Bacteria threshold:", doc["data"]["bacteriaThreshold"]["value"], "", safetyStringToColor(doc["data"]["bacteriaThreshold"]["safety"]));
-      PrintData(6, "Station types:", stationTypes[stationTypeIndex], "", ILI9341_BLUE);
-     // PrinInfo(7, lastModifedBuf, ILI9341_WHITE);
-
-  PrintData(7, "Date Retrieved:", lastModifedDateBuf, "", ILI9341_WHITE);
-  PrintData(8, "", lastModifedTimeBuf, "", ILI9341_WHITE);
-
+      PrintData(3, "E. Coli:", doc["data"]["eColiConcentration"]["value"], "col/samp.", safetyStringToColor(doc["data"]["eColiConcentration"]["safety"]));
+      PrintData(4, "Bacteria threshold:", doc["data"]["bacteriaThreshold"]["safety"], "", safetyStringToColor(doc["data"]["bacteriaThreshold"]["safety"]));
+      PrintData(6, "Station type(s):", stationTypes[stationTypeIndex], "", ILI9341_BLUE);
+      PrintData(7, "Date Retrieved:", lastModifedDateBuf, "", ILI9341_WHITE);
+      PrintData(8, "(from endpoint)", lastModifedTimeBuf, "", ILI9341_WHITE);
     }
     else if (displayScreen == 1)
     {
@@ -514,9 +516,9 @@ void UpdateIndicators()
     oldStatusSum = statusSum;
     int apiVal = (int)dataApiStatus + (int)timeApiStatus;
 
-    DisplayIndicator("SD", 200, textStatusY, sdStatus ? ILI9341_GREEN : ILI9341_RED);
-    DisplayIndicator("WIFI", 255, textStatusY, wifiStatus ? ILI9341_GREEN : ILI9341_RED);
-    DisplayIndicator("API", 335, textStatusY, apiVal == 0 ? ILI9341_RED : apiVal == 1 ? ILI9341_YELLOW : apiVal == 2 ? ILI9341_GREEN : ILI9341_BLUE);
+    DisplayIndicator("SD", 210, textStatusY, sdStatus ? ILI9341_GREEN : ILI9341_RED);
+    DisplayIndicator("WIFI", 267, textStatusY, wifiStatus ? ILI9341_GREEN : ILI9341_RED);
+    DisplayIndicator("API", 347, textStatusY, apiVal == 0 ? ILI9341_RED : apiVal == 1 ? ILI9341_YELLOW : apiVal == 2 ? ILI9341_GREEN : ILI9341_BLUE);
   }
 }
 
@@ -539,7 +541,8 @@ void UpdateLocationIndicators()
 bool UpdateTime()
 {
   String payload;
-  String host = "http://worldclockapi.com/api/json/" + timeZone + "/now";
+  // String host = "http://worldclockapi.com/api/json/" + timeZone + "/now"; // currentDateTime
+   String host = "http://worldtimeapi.org/api/timezone/" + timeZone;
 
   Serial.print("Connecting to ");
   Serial.println(host);
@@ -575,7 +578,7 @@ bool UpdateTime()
     return false;
   }
 
-  String currentTime = doc["currentDateTime"];
+  String currentTime = doc["datetime"];
   Serial.printf("Current time: %s", currentTime.c_str());
 
   return true;
