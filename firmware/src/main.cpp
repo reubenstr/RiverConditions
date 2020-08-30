@@ -16,7 +16,7 @@
 *
 *
 * MCU: ESP32 (ESP32 DEV KIT 1.0)
-* Extra hardware: ILI9341 tft display, generic SD-Card reader, WS2812b led strips
+* Extra hardware: TFT tft display, generic SD-Card reader, WS2812b led strips
 *
 * Locations (containing one or more stations) are cached on the SD card.
 * Location parameters (name, area, station ids, etc.) are stored on the SD card: locations.json.
@@ -26,18 +26,18 @@
 #include <SPI.h>
 #include <Wire.h>
 #include <Adafruit_GFX.h>
-#include <Adafruit_ILI9341.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include <SPI.h>
 #include <SD.h>
 #include <Adafruit_NeoPixel.h>
-#include "utilities.h"
-#include "msTimer.h" // local library
-#include "flasher.h" // local library
+#include "utilities.h" // local library
+#include "msTimer.h"   // local library
+#include "flasher.h"   // local library
 
 #include <TFT_eSPI.h> // https://github.com/Bodmer/TFT_eSPI
+
 
 /*
 The following defines are required for the TFT_eSPI library.
@@ -62,7 +62,7 @@ const int daysDataIsValid = 7;
 const int textIndent = 15;
 const int textStatusY = 293;
 
-//Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_RST);
+//Adafruit_TFT tft = Adafruit_TFT(TFT_CS, TFT_DC, TFT_RST);
 TFT_eSPI tft = TFT_eSPI();
 
 Adafruit_NeoPixel stripLocations = Adafruit_NeoPixel(numLedLocations, PIN_STRIP_LOCATIONS, NEO_GRB + NEO_KHZ800);
@@ -113,9 +113,9 @@ const uint32_t YELLOW = 0x00F0F000;
 
 void FatalError(String errorMsg)
 {
-  tft.fillScreen(ILI9341_BLACK);
+  tft.fillScreen(TFT_BLACK);
   tft.setTextSize(2);
-  tft.setTextColor(ILI9341_RED);
+  tft.setTextColor(TFT_RED);
   tft.setCursor(0, 0);
   tft.println("Fatal error.");
   tft.println();
@@ -131,70 +131,30 @@ void FatalError(String errorMsg)
 void charBounds(char c, int16_t *x, int16_t *y,
                 int16_t *minx, int16_t *miny, int16_t *maxx, int16_t *maxy)
 {
-
-  if (!true)
-  { //If non-default font is used not usable in my quick "hack"
-
-    //if (c == '\n') { // Newline?
-    //	*x = 0;    // Reset x to zero, advance y by one line
-    //	*y += textsize * (uint8_t)pgm_read_byte(&gfxFont->yAdvance);
-    //}
-    //else if (c != '\r') { // Not a carriage return; is normal char
-    //	uint8_t first = pgm_read_byte(&gfxFont->first),
-    //		last = pgm_read_byte(&gfxFont->last);
-    //	if ((c >= first) && (c <= last)) { // Char present in this font?
-    //		GFXglyph *glyph = &(((GFXglyph *)pgm_read_pointer(
-    //			&gfxFont->glyph))[c - first]);
-    //		uint8_t gw = pgm_read_byte(&glyph->width),
-    //			gh = pgm_read_byte(&glyph->height),
-    //			xa = pgm_read_byte(&glyph->xAdvance);
-    //		int8_t  xo = pgm_read_byte(&glyph->xOffset),
-    //			yo = pgm_read_byte(&glyph->yOffset);
-    //		if (wrap && ((*x + (((int16_t)xo + gw)*textsize)) > _width)) {
-    //			*x = 0; // Reset x to zero, advance y by one line
-    //			*y += textsize * (uint8_t)pgm_read_byte(&gfxFont->yAdvance);
-    //		}
-    //		int16_t ts = (int16_t)textsize,
-    //			x1 = *x + xo * ts,
-    //			y1 = *y + yo * ts,
-    //			x2 = x1 + gw * ts - 1,
-    //			y2 = y1 + gh * ts - 1;
-    //		if (x1 < *minx) *minx = x1;
-    //		if (y1 < *miny) *miny = y1;
-    //		if (x2 > *maxx) *maxx = x2;
-    //		if (y2 > *maxy) *maxy = y2;
-    //		*x += xa * ts;
-    //	}
-    //}
+  if (c == '\n')
+  {                         // Newline?
+    *x = 0;                 // Reset x to zero,
+    *y += tft.textsize * 8; // advance y one line
+                            // min/max x/y unchaged -- that waits for next 'normal' character
   }
-  else
-  { // Default font
-
-    if (c == '\n')
-    {                         // Newline?
+  else if (c != '\r')
+  { // Normal char; ignore carriage returns
+    if (/*wrap*/ false && ((*x + tft.textsize * 6) > tft.width()))
+    {                         // Off right?
       *x = 0;                 // Reset x to zero,
       *y += tft.textsize * 8; // advance y one line
-                              // min/max x/y unchaged -- that waits for next 'normal' character
     }
-    else if (c != '\r')
-    { // Normal char; ignore carriage returns
-      if (/*wrap*/ false && ((*x + tft.textsize * 6) > tft.width()))
-      {                         // Off right?
-        *x = 0;                 // Reset x to zero,
-        *y += tft.textsize * 8; // advance y one line
-      }
-      int x2 = *x + tft.textsize * 6 - 1, // Lower-right pixel of char
-          y2 = *y + tft.textsize * 8 - 1;
-      if (x2 > *maxx)
-        *maxx = x2; // Track max x, y
-      if (y2 > *maxy)
-        *maxy = y2;
-      if (*x < *minx)
-        *minx = *x; // Track min x, y
-      if (*y < *miny)
-        *miny = *y;
-      *x += tft.textsize * 6; // Advance x one char
-    }
+    int x2 = *x + tft.textsize * 6 - 1, // Lower-right pixel of char
+        y2 = *y + tft.textsize * 8 - 1;
+    if (x2 > *maxx)
+      *maxx = x2; // Track max x, y
+    if (y2 > *maxy)
+      *maxy = y2;
+    if (*x < *minx)
+      *minx = *x; // Track min x, y
+    if (*y < *miny)
+      *miny = *y;
+    *x += tft.textsize * 6; // Advance x one char
   }
 }
 
@@ -322,24 +282,24 @@ bool InitLocationsFromSDCard()
 
 uint16_t safetyStringToColor(const char *str)
 {
-  return !strcmp(str, "N.A.") ? ILI9341_WHITE : !strcmp(str, "Fair") ? ILI9341_GREEN : !strcmp(str, "Caution") ? ILI9341_YELLOW : !strcmp(str, "Danger") ? ILI9341_RED : ILI9341_WHITE;
+  return !strcmp(str, "N.A.") ? TFT_WHITE : !strcmp(str, "Fair") ? TFT_GREEN : !strcmp(str, "Caution") ? TFT_YELLOW : !strcmp(str, "Danger") ? TFT_RED : TFT_WHITE;
 }
 
 void PrintData(int line, const char *text, const char *value, const char *units, uint16_t color)
-{ 
+{
 
- int spaces = strlen(value) > 5 ? 9 - (strlen(value) - 5) : 9;
+  int spaces = strlen(value) > 5 ? 9 - (strlen(value) - 5) : 9;
 
   tft.setTextSize(2);
-  tft.setCursor(textIndent, 87 + line * 21);  
+  tft.setCursor(textIndent, 87 + line * 21);
 
-  tft.setTextColor(ILI9341_WHITE, ILI9341_BLACK);
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
   tft.printf("%-*s", 20, text);
 
-  tft.setTextColor(color, ILI9341_BLACK);
+  tft.setTextColor(color, TFT_BLACK);
   tft.printf("%-*s", 5, value);
 
-  tft.setTextColor(ILI9341_WHITE, ILI9341_BLACK);
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
   tft.printf("%-*s", spaces, strcmp(value, "N.A.") == 0 ? "" : units);
 }
 
@@ -348,21 +308,21 @@ void PrinInfo(int line, const char *text, uint16_t color)
   tft.setTextSize(2);
   tft.setCursor(textIndent, 87 + line * 21);
 
-  tft.setTextColor(color, ILI9341_BLACK);
+  tft.setTextColor(color, TFT_BLACK);
   tft.printf("%-*s", 25, text);
 }
 
 bool UpdateLocationDataOnScreen(int locationIndex, String *locationDataJson, int displayScreen)
 {
   tft.setTextSize(3);
-  tft.setTextColor(ILI9341_WHITE, ILI9341_BLACK);
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
   tft.setCursor(textIndent, 14);
   tft.printf("%-24s", locations[locationIndex].shortName.c_str());
   tft.setCursor(textIndent, 44);
   tft.printf("%-24s", locations[locationIndex].area.c_str());
 
   tft.setTextSize(2);
-  tft.setTextColor(ILI9341_GREEN, ILI9341_BLACK);
+  tft.setTextColor(TFT_GREEN, TFT_BLACK);
 
   DynamicJsonDocument doc(2048);
   DeserializationError error = deserializeJson(doc, *locationDataJson);
@@ -375,14 +335,14 @@ bool UpdateLocationDataOnScreen(int locationIndex, String *locationDataJson, int
     char locationString[50];
     sprintf(locationString, "(filename: %u.json, was not found.)", locationIndex);
 
-    PrinInfo(0, "Location data not found", ILI9341_RED);
-    PrinInfo(1, "on SD card.", ILI9341_RED);
-    PrinInfo(2, "", ILI9341_RED);
-    PrinInfo(3, "Data will be downloaded", ILI9341_RED);
-    PrinInfo(4, "from API shortly.", ILI9341_RED);
-    PrinInfo(5, "", ILI9341_RED);
-    PrinInfo(6, "", ILI9341_RED);
-    PrinInfo(7, "", ILI9341_RED);
+    PrinInfo(0, "Location data not found", TFT_RED);
+    PrinInfo(1, "on SD card.", TFT_RED);
+    PrinInfo(2, "", TFT_RED);
+    PrinInfo(3, "Data will be downloaded", TFT_RED);
+    PrinInfo(4, "from API shortly.", TFT_RED);
+    PrinInfo(5, "", TFT_RED);
+    PrinInfo(6, "", TFT_RED);
+    PrinInfo(7, "", TFT_RED);
   }
   else
   {
@@ -407,26 +367,26 @@ bool UpdateLocationDataOnScreen(int locationIndex, String *locationDataJson, int
       PrintData(2, "Water temperature:", doc["data"]["waterTempC"]["value"], "C", safetyStringToColor(doc["data"]["waterTempC"]["safety"]));
       PrintData(3, "E. Coli:", doc["data"]["eColiConcentration"]["value"], "col/samp.", safetyStringToColor(doc["data"]["eColiConcentration"]["safety"]));
       PrintData(4, "Bacteria threshold:", doc["data"]["bacteriaThreshold"]["safety"], "", safetyStringToColor(doc["data"]["bacteriaThreshold"]["safety"]));
-      PrintData(6, "Station type(s):", stationTypes[stationTypeIndex], "", ILI9341_BLUE);
-      PrintData(7, "Date Retrieved:", lastModifedDateBuf, "", ILI9341_WHITE);
-      PrintData(8, "(from endpoint)", lastModifedTimeBuf, "", ILI9341_WHITE);
+      PrintData(6, "Station type(s):", stationTypes[stationTypeIndex], "", TFT_BLUE);
+      PrintData(7, "Date Retrieved:", lastModifedDateBuf, "", TFT_WHITE);
+      PrintData(8, "(from endpoint)", lastModifedTimeBuf, "", TFT_WHITE);
     }
     else if (displayScreen == 1)
     {
 
-      uint16_t color = AreDateTimesWithinNDays(currentTime, doc["data"]["streamFlow"]["date"].as<String>(), daysDataIsValid) ? ILI9341_GREEN : ILI9341_RED;
+      uint16_t color = AreDateTimesWithinNDays(currentTime, doc["data"]["streamFlow"]["date"].as<String>(), daysDataIsValid) ? TFT_GREEN : TFT_RED;
       PrintData(0, "Stream Flow:", doc["data"]["streamFlow"]["date"].as<String>().substring(0, 10).c_str(), "", color);
 
-      color = AreDateTimesWithinNDays(currentTime, doc["data"]["gaugeHeight"]["date"].as<String>(), daysDataIsValid) ? ILI9341_GREEN : ILI9341_RED;
+      color = AreDateTimesWithinNDays(currentTime, doc["data"]["gaugeHeight"]["date"].as<String>(), daysDataIsValid) ? TFT_GREEN : TFT_RED;
       PrintData(1, "Gauge Height:", doc["data"]["gaugeHeight"]["date"].as<String>().substring(0, 10).c_str(), "", color);
 
-      color = AreDateTimesWithinNDays(currentTime, doc["data"]["waterTempC"]["date"].as<String>(), daysDataIsValid) ? ILI9341_GREEN : ILI9341_RED;
+      color = AreDateTimesWithinNDays(currentTime, doc["data"]["waterTempC"]["date"].as<String>(), daysDataIsValid) ? TFT_GREEN : TFT_RED;
       PrintData(2, "Water temp.:", doc["data"]["waterTempC"]["date"].as<String>().substring(0, 10).c_str(), "", color);
 
-      color = AreDateTimesWithinNDays(currentTime, doc["data"]["eColiConcentration"]["date"].as<String>(), daysDataIsValid) ? ILI9341_GREEN : ILI9341_RED;
+      color = AreDateTimesWithinNDays(currentTime, doc["data"]["eColiConcentration"]["date"].as<String>(), daysDataIsValid) ? TFT_GREEN : TFT_RED;
       PrintData(3, "E-coli:", doc["data"]["eColiConcentration"]["date"].as<String>().substring(0, 10).c_str(), "", color);
 
-      color = AreDateTimesWithinNDays(currentTime, doc["data"]["bacteriaThreshold"]["date"].as<String>(), daysDataIsValid) ? ILI9341_GREEN : ILI9341_RED;
+      color = AreDateTimesWithinNDays(currentTime, doc["data"]["bacteriaThreshold"]["date"].as<String>(), daysDataIsValid) ? TFT_GREEN : TFT_RED;
       PrintData(4, "Bac. threshold:", doc["data"]["bacteriaThreshold"]["date"].as<String>().substring(0, 10).c_str(), "", color);
     }
   }
@@ -475,19 +435,21 @@ void DisplayLayout()
   int h = tft.height() - 1;
   int t = 5;
 
+  tft.fillScreen(TFT_BLACK);
+
   // Perimeter
-  tft.fillRect(0, 0, w, t, ILI9341_BLUE);
-  tft.fillRect(w - t, 0, w, h, ILI9341_BLUE);
-  tft.fillRect(0, h - t, tft.width(), 5, ILI9341_BLUE);
-  tft.fillRect(0, 0, 0 + t, h, ILI9341_BLUE);
+  tft.fillRect(0, 0, w, t, TFT_BLUE);
+  tft.fillRect(w - t, 0, w, h, TFT_BLUE);
+  tft.fillRect(0, h - t, tft.width(), 5, TFT_BLUE);
+  tft.fillRect(0, 0, 0 + t, h, TFT_BLUE);
 
   // Lines across.
-  tft.fillRect(0, 73, tft.width(), 5, ILI9341_BLUE);
-  tft.fillRect(0, 280, tft.width(), 5, ILI9341_BLUE);
+  tft.fillRect(0, 73, tft.width(), 5, TFT_BLUE);
+  tft.fillRect(0, 280, tft.width(), 5, TFT_BLUE);
 
   tft.setTextSize(2);
   tft.setCursor(textIndent, textStatusY);
-  tft.setTextColor(ILI9341_WHITE);
+  tft.setTextColor(TFT_WHITE);
   tft.print("System Status:");
 }
 
@@ -502,7 +464,7 @@ void DisplayIndicator(String string, int x, int y, uint16_t color)
   getTextBounds(string.c_str(), x, y, &x1, &y1, &w, &h);
   tft.fillRect(x - offset, y - offset, w + offset, h + offset, color);
   tft.setTextPadding(5);
-  tft.setTextColor(ILI9341_BLACK, color);
+  tft.setTextColor(TFT_BLACK, color);
   tft.print(string);
 }
 
@@ -516,9 +478,9 @@ void UpdateIndicators()
     oldStatusSum = statusSum;
     int apiVal = (int)dataApiStatus + (int)timeApiStatus;
 
-    DisplayIndicator("SD", 210, textStatusY, sdStatus ? ILI9341_GREEN : ILI9341_RED);
-    DisplayIndicator("WIFI", 267, textStatusY, wifiStatus ? ILI9341_GREEN : ILI9341_RED);
-    DisplayIndicator("API", 347, textStatusY, apiVal == 0 ? ILI9341_RED : apiVal == 1 ? ILI9341_YELLOW : apiVal == 2 ? ILI9341_GREEN : ILI9341_BLUE);
+    DisplayIndicator("SD", 210, textStatusY, sdStatus ? TFT_GREEN : TFT_RED);
+    DisplayIndicator("WIFI", 267, textStatusY, wifiStatus ? TFT_GREEN : TFT_RED);
+    DisplayIndicator("API", 347, textStatusY, apiVal == 0 ? TFT_RED : apiVal == 1 ? TFT_YELLOW : apiVal == 2 ? TFT_GREEN : TFT_BLUE);
   }
 }
 
@@ -542,7 +504,7 @@ bool UpdateTime()
 {
   String payload;
   // String host = "http://worldclockapi.com/api/json/" + timeZone + "/now"; // currentDateTime
-   String host = "http://worldtimeapi.org/api/timezone/" + timeZone;
+  String host = "http://worldtimeapi.org/api/timezone/" + timeZone;
 
   Serial.print("Connecting to ");
   Serial.println(host);
@@ -654,7 +616,7 @@ void setup()
   stripLocations.show();
 
   tft.begin();
-  tft.fillScreen(ILI9341_BLACK);
+  tft.fillScreen(TFT_BLACK);
   tft.setRotation(3);
 
   if (!InitSDCard())
@@ -671,20 +633,30 @@ void setup()
     FatalError("Failed to get location init data.\n(locations.json required)");
   }
 
-  DisplayLayout();
+  ////////////////////
 
-  UpdateIndicators();
+  //drawSdJpeg("/jamesriver.jpg", 0, 0);
+  //while(1){};
+
+  ////////////////////
 
   UpdateLocationIndicators();
 
-  Serial.print("Connecting to ");
-  Serial.println(ssid);
+  tft.setTextSize(2);
+  tft.setTextColor(TFT_GREEN);
+  tft.printf("Connecting to WiFi\n");
+  tft.printf("SSID: %s\n", ssid);
+  tft.printf("Password: %s\n", password);
+
+  Serial.printf("Connecting to SSID: %s, with password: %s\n", ssid, password);
+
 
   WiFi.begin(ssid, password);
 
   while (WiFi.status() != WL_CONNECTED)
   {
     delay(500);
+    tft.print(".");
     Serial.print(".");
   }
 
@@ -692,6 +664,10 @@ void setup()
   Serial.println("WiFi connected");
   Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
+
+  DisplayLayout();
+
+  UpdateIndicators();
 }
 
 void loop(void)
@@ -712,53 +688,65 @@ void loop(void)
   Danger:
   Bacteria above caution threshold.
   Streamflow above caution threshold.
-  AAny two in the danger area triggers a danger.
+  Any two in the danger area triggers a danger.
 
 */
 
   static msTimer timerApi(5000);
   static msTimer timerTime(0);
 
-  if (timerTime.elapsed())
+  if (WiFi.status() == WL_CONNECTED)
   {
-    timerTime.setDelay(60000);
-    timeApiStatus = UpdateTime();
-  }
+    wifiStatus = true;
 
-  if (timerApi.elapsed())
-  {
-    dataApiStatus = GetDataFromAPI(selectedLoctionIndex);
-
-    if (++selectedLoctionIndex > numLocations - 1)
+    if (timerTime.elapsed())
     {
-      selectedLoctionIndex = 0;
+      timerTime.setDelay(60000);
+      timeApiStatus = UpdateTime();
     }
-  }
 
-  UpdateIndicators();
-
-  UpdateLocationIndicators();
-
-  static int oldSelectedLoctionIndex;
-  if (oldSelectedLoctionIndex != selectedLoctionIndex)
-  {
-    oldSelectedLoctionIndex = selectedLoctionIndex;
-
-    String locationDataJson;
-    if (!GetJsonFromSDCard("/locations/" + String(selectedLoctionIndex), &locationDataJson))
+    if (timerApi.elapsed())
     {
-      // Check SD card for connectivity.
-      String path = "/locations.json";
-      File file = SD.open(path);
-      if (!file)
+      dataApiStatus = GetDataFromAPI(selectedLoctionIndex);
+
+      if (++selectedLoctionIndex > numLocations - 1)
       {
-        FatalError("SD card not detected.\nTurn off device and\nreinsert valid SD card.");
+        selectedLoctionIndex = 0;
       }
-      file.close();
     }
-
-    unsigned long m = millis();
-    UpdateLocationDataOnScreen(selectedLoctionIndex, &locationDataJson, displayScreen);
-    Serial.printf("Time to print data on tft: %ums\n", (unsigned int)(millis() - m));
   }
+  else
+  {
+    wifiStatus = true;
+    dataApiStatus = false;
+    timeApiStatus = false;
+  }
+
+
+UpdateIndicators();
+
+UpdateLocationIndicators();
+
+static int oldSelectedLoctionIndex;
+if (oldSelectedLoctionIndex != selectedLoctionIndex)
+{
+  oldSelectedLoctionIndex = selectedLoctionIndex;
+
+  String locationDataJson;
+  if (!GetJsonFromSDCard("/locations/" + String(selectedLoctionIndex), &locationDataJson))
+  {
+    // Check SD card for connectivity.
+    String path = "/locations.json";
+    File file = SD.open(path);
+    if (!file)
+    {
+      FatalError("SD card not detected.\nTurn off device and\nreinsert valid SD card.");
+    }
+    file.close();
+  }
+
+  unsigned long m = millis();
+  UpdateLocationDataOnScreen(selectedLoctionIndex, &locationDataJson, displayScreen);
+  Serial.printf("Time to print data on tft: %ums\n", (unsigned int)(millis() - m));
+}
 }
