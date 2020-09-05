@@ -3,34 +3,51 @@
 // Data is retreived in JSON, parsed, reduced, and repacked as JSON into a managable size.
 // JSON data is cached as files where the file name is the station id.
 //
-// Aug. 13th 2020
+// Sep. 5th 2020
 //
-// Usage example: www.hostingwebsite.com/api/riverconditions.php?stationId=20209000
+// Usage example: www.hostingwebsite.com/api/riverconditions?stationId=02029000,8863
+
 //set_error_handler("warning_handler", E_WARNING | E_ALL);
+
 // Check for present and valid station parameters.
-if (isset($_GET['usgs']) && !empty($_GET['usgs']))
+if (isset($_GET['stationId']))
 {
-    $usgsId = htmlspecialchars($_GET["usgs"]);
+    $stationIdRaw = htmlspecialchars($_GET["stationId"]);
 }
 else
 {
-    $usgsId = null;
+    error("stationId parameter required.");
 }
 
-if (isset($_GET['wr']) && !empty($_GET['wr']))
+$stationIdArray = explode(",", $stationIdRaw);
+
+
+
+// Set station IDs for API endpoints.
+$usgsId = null;
+$wrId = null;
+foreach ($stationIdArray as $sId)
 {
-    $wrId = htmlspecialchars($_GET["wr"]);
-}
-else
-{
-    $wrId = null;
+	if (!is_numeric($sId))
+	{
+		error("Invalid stationId parameter: {$sId}");
+	}
+	
+    if (strlen($sId) == 8)
+    {
+        $usgsId = $sId;
+    }
+    else
+    {
+        $wrId = $sId;
+    }
 }
 
-//
+// Get json.
 if ($usgsId != null)
 {
-    $usgsJson = get_json("USGS", $usgsId);
-    //$usgsJson = file_get_contents('supplementUSGS.json'); // TEMP    
+    //$usgsJson = get_json("USGS", $usgsId);
+    $usgsJson = file_get_contents('usgsTestData.json'); // TEMP    
 }
 else
 {
@@ -39,8 +56,8 @@ else
 
 if ($wrId != null)
 {
-    $wrJson = get_json("WR", $wrId);
-    //$wrJson = file_get_contents('supplement.json'); // TEMP    
+    //$wrJson = get_json("WR", $wrId);
+    $wrJson = file_get_contents('wrTestData.json'); // TEMP    
 }
 else
 {
@@ -71,7 +88,7 @@ function get_json($stationType, $stationId)
                 return fread($fh, filesize($cacheFile));
             }
         }
-    }
+    }	
 
     // Get json from endpoint, save json into cache file.
     if ($stationType == "USGS")
@@ -109,6 +126,8 @@ function parse_station_json($usgsJson, $wrJson)
 
     // Init variables.
     $array = array();
+	$noData = "N.A.";
+	
 
     $usgsId = "";
     $wrId = "";
@@ -119,15 +138,18 @@ function parse_station_json($usgsJson, $wrJson)
     $wrDescription = "";
     $recordTime = date(DateTime::ISO8601);
 
-    $noData = - 9; // Per waterreporter usage.
+    
     $bacteria_threshold_date_time = "";
     $bacteria_threshold_value = $noData;
+	$bacteria_threshold_safety = $noData;
 
     $water_temp_c_date_time = "";
     $water_temp_c_value = $noData;
+	$water_temp_c_safety = $noData;
 
     $e_coli_concentration_date_time = "";
     $e_coli_concentration_value = $noData;
+	$e_coli_concentration_safety = $noData;
    
     $stream_flow_date_time = "";
 	 $stream_flow_value = $noData;
@@ -192,7 +214,17 @@ function parse_station_json($usgsJson, $wrJson)
 
         $e_coli_concentration_date_time = $wrArray['sample_idx']['e_coli_concentration'][$e_coli_concentration_recent_index]['date'];
         $e_coli_concentration_value = $wrArray['sample_idx']['e_coli_concentration'][$e_coli_concentration_recent_index]['value'];
-    }
+		
+		
+	
+	$bacteria_threshold_safety = $bacteria_threshold_value < 104 ? "Fair" : "Danger";  
+	$water_temp_c_safety = $water_temp_c_value < 20 ? "Danger" : $water_temp_c_value < 32 ? "Caution" : "Fair";
+	$e_coli_concentration_safety = $e_coli_concentration_value == 0 ? "Fair" : "Danger";
+	
+
+}
+
+
 
     $array['station'] = array(
         'usgsId' => $usgsId,
@@ -203,28 +235,33 @@ function parse_station_json($usgsJson, $wrJson)
         'usgsDescription' => $usgsDescription,
         'wrDescription' => $wrDescription,
         'recordTime' => $recordTime
-    );
-
+    );	
+	
     $array['data'] = array(
         'bacteriaThreshold' => array(
             'date' => $bacteria_threshold_date_time,
-            'value' => $bacteria_threshold_value
+			 'value' => wr_variable_to_text($bacteria_threshold_value),
+            'safety' =>   $bacteria_threshold_safety
         ) ,
         'waterTempC' => array(
             'date' => $water_temp_c_date_time,
-            'value' => $water_temp_c_value
+            'value' => wr_variable_to_text($water_temp_c_value),
+			'safety' =>   $water_temp_c_safety
         ) ,
         'eColiConcentration' => array(
             'date' => $e_coli_concentration_date_time,
-            'value' => $e_coli_concentration_value
+            'value' => wr_variable_to_text($e_coli_concentration_value),
+			'safety' =>  $e_coli_concentration_safety
         ) ,
         'streamFlow' => array(
             'date' => $stream_flow_date_time,
-            'value' => intval($stream_flow_value)
+            'value' => strval($stream_flow_value),
+			'safety' => $noData
         ) ,
         'gaugeHeight' => array(
             'date' => $gauge_height_date_time,
-            'value' => intval($gauge_height_value)
+            'value' => strval($gauge_height_value),
+			'safety' => $noData
         )
     );
 
@@ -235,6 +272,7 @@ function error($msg)
 {
     $repsonse = new \stdClass();
     $repsonse->error = true;
+	$repsonse->date = date(DateTime::ISO8601);
     $repsonse->message = $msg;
     echo json_encode($repsonse);
     exit();
@@ -276,6 +314,24 @@ function get_web_page($url)
     $header['errmsg'] = $errmsg;
     $header['content'] = $content;
     return $header;
+}
+
+
+function wr_variable_to_text($var)
+{
+	if (!is_numeric($var))
+	{
+		return $var;
+	}
+	
+	if ($var == -9) // -9 per waterreporter json specifications.
+	{
+			return  "N.A.";
+	}
+		else
+	{
+		return strval($var);
+	}	
 }
 
 function warning_handler($errno, $errstr)
