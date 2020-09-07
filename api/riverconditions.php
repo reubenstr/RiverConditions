@@ -127,7 +127,7 @@ function parse_station_json($usgsJson, $wrJson)
     // Init variables.
     $array = array();
 	$noData = "N.A.";
-	
+	$stationStatus = "";
 
     $usgsId = "";
     $wrId = "";
@@ -153,10 +153,13 @@ function parse_station_json($usgsJson, $wrJson)
    
     $stream_flow_date_time = "";
 	 $stream_flow_value = $noData;
+	 $stream_flow_safety  = $noData;
    
     $gauge_height_date_time = "";
 	 $gauge_height_value = $noData;
+	 $gauge_height_safety  = $noData;
 	
+	// Process USGS JSON data.
     if ($usgsJson != null)
     {
         $usgsArray = json_decode($usgsJson, true);
@@ -178,15 +181,36 @@ function parse_station_json($usgsJson, $wrJson)
             {
                 $stream_flow_value = $usgsArray['value']['timeSeries'][$i]['values'][0]['value'][0]['value'];
                 $stream_flow_date_time = $usgsArray['value']['timeSeries'][$i]['values'][0]['value'][0]['dateTime'];
+				// TODO: determine if there is an offical recommondation for stream flow safety.
+				if ($stream_flow_value > 5000)
+				{
+					$stream_flow_safety = "Danger";
+				}
+				else
+				{
+					$stream_flow_safety = "Fair";
+				}
             }
             if ("00065" == $usgsArray['value']['timeSeries'][$i]['variable']['variableCode'][0]['value'])
             {
                 $gauge_height_value = $usgsArray['value']['timeSeries'][$i]['values'][0]['value'][0]['value'];
                 $gauge_height_date_time = $usgsArray['value']['timeSeries'][$i]['values'][0]['value'][0]['dateTime'];
+				// TODO: gauge height safety appears to be determined by a site by site basis
+				/*
+				if ($gauge_height_value > 8)
+				{
+					$gauge_height_safety = "Danger";				
+					}
+				else
+				{
+					$gauge_height_safety = "Fair";
+				}
+				*/
             }
         }
     }
     
+	// Process WR JSON data.
 	if ($wrJson != null)
     {
         $wrArray = json_decode($wrJson, true);
@@ -225,7 +249,30 @@ function parse_station_json($usgsJson, $wrJson)
 }
 
 
+	// determin station status (displayed on dashboard's LEDs)
+	
+	if ($bacteria_threshold_safety == "Danger" || $e_coli_concentration_safety == "Danger")
+	{
+		$stationStatus = "Danger";
+	}
+	else if ($bacteria_threshold_safety == "Fair" || $e_coli_concentration_safety == "Fair")
+	{	
+		$stationStatus = "Fair";				
+	}
+	
+	if ($stream_flow_safety == "Danger" || $gauge_height_safety == "Danger")
+	{		
+		$stationStatus = "Danger";
+	}
+	
+	if ($stationStatus != "Danger" && $water_temp_c_safety == "Caution")
+	{
+		$stationStatus = "Caution";
+	}
 
+
+
+	// Build JSON data.
     $array['station'] = array(
         'usgsId' => $usgsId,
         'wrId' => $wrId,
@@ -234,7 +281,8 @@ function parse_station_json($usgsJson, $wrJson)
         'wrIsActive' => $wrIsActive,
         'usgsDescription' => $usgsDescription,
         'wrDescription' => $wrDescription,
-        'recordTime' => $recordTime
+        'recordTime' => $recordTime,
+		'stationStatus' => $stationStatus
     );	
 	
     $array['data'] = array(
@@ -256,12 +304,12 @@ function parse_station_json($usgsJson, $wrJson)
         'streamFlow' => array(
             'date' => $stream_flow_date_time,
             'value' => strval($stream_flow_value),
-			'safety' => $noData
+			'safety' => $stream_flow_safety
         ) ,
         'gaugeHeight' => array(
             'date' => $gauge_height_date_time,
             'value' => strval($gauge_height_value),
-			'safety' => $noData
+			'safety' => $gauge_height_safety
         )
     );
 

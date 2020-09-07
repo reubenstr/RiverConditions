@@ -38,7 +38,6 @@
 
 #include <TFT_eSPI.h> // https://github.com/Bodmer/TFT_eSPI
 
-
 /*
 The following defines are required for the TFT_eSPI library.
 The are to be placed in the library's User_Setup.h.
@@ -551,6 +550,7 @@ bool GetDataFromAPI(int loctionIndex)
   String payload;
   String host = "http://artofmystate.com/api/riverconditions.php?stationId=" + locations[loctionIndex].stationIds[0];
 
+  // Add remaining stations to query URL.
   for (int i = 1; i < maxStationIds; i++)
   {
     if (!locations[loctionIndex].stationIds[i].isEmpty())
@@ -617,7 +617,7 @@ void setup()
 
   tft.begin();
   tft.fillScreen(TFT_BLACK);
-  tft.setRotation(3);
+  tft.setRotation(1);
 
   if (!InitSDCard())
   {
@@ -633,13 +633,6 @@ void setup()
     FatalError("Failed to get location init data.\n(locations.json required)");
   }
 
-  ////////////////////
-
-  //drawSdJpeg("/jamesriver.jpg", 0, 0);
-  //while(1){};
-
-  ////////////////////
-
   UpdateLocationIndicators();
 
   tft.setTextSize(2);
@@ -649,7 +642,6 @@ void setup()
   tft.printf("Password: %s\n", password);
 
   Serial.printf("Connecting to SSID: %s, with password: %s\n", ssid, password);
-
 
   WiFi.begin(ssid, password);
 
@@ -672,25 +664,6 @@ void setup()
 
 void loop(void)
 {
-
-  /* Fair, Caution, Danger, No Data
-
-  Fair:
-  Bacteria below threshold.
-  Streamflow below threshold.
-  
-
-  Caution:
-  Bacteria above fair threshold.
-  Streamflow above fair threshold.
-  Any two in the caution area triggers a caution.
-
-  Danger:
-  Bacteria above caution threshold.
-  Streamflow above caution threshold.
-  Any two in the danger area triggers a danger.
-
-*/
 
   static msTimer timerApi(5000);
   static msTimer timerTime(0);
@@ -722,31 +695,31 @@ void loop(void)
     timeApiStatus = false;
   }
 
+  UpdateIndicators();
 
-UpdateIndicators();
+  UpdateLocationIndicators();
 
-UpdateLocationIndicators();
-
-static int oldSelectedLoctionIndex;
-if (oldSelectedLoctionIndex != selectedLoctionIndex)
-{
-  oldSelectedLoctionIndex = selectedLoctionIndex;
-
-  String locationDataJson;
-  if (!GetJsonFromSDCard("/locations/" + String(selectedLoctionIndex), &locationDataJson))
+  // Update location on screen.
+  static int oldSelectedLoctionIndex;
+  if (oldSelectedLoctionIndex != selectedLoctionIndex)
   {
-    // Check SD card for connectivity.
-    String path = "/locations.json";
-    File file = SD.open(path);
-    if (!file)
-    {
-      FatalError("SD card not detected.\nTurn off device and\nreinsert valid SD card.");
-    }
-    file.close();
-  }
+    oldSelectedLoctionIndex = selectedLoctionIndex;
 
-  unsigned long m = millis();
-  UpdateLocationDataOnScreen(selectedLoctionIndex, &locationDataJson, displayScreen);
-  Serial.printf("Time to print data on tft: %ums\n", (unsigned int)(millis() - m));
-}
+    String locationDataJson;
+    if (!GetJsonFromSDCard("/locations/" + String(selectedLoctionIndex), &locationDataJson))
+    {
+      // Check SD card for connectivity.
+      String path = "/locations.json";
+      File file = SD.open(path);
+      if (!file)
+      {
+        FatalError("SD card not detected.\nTurn off device and\nreinsert valid SD card.");
+      }
+      file.close();
+    }
+
+    unsigned long m = millis();
+    UpdateLocationDataOnScreen(selectedLoctionIndex, &locationDataJson, displayScreen);
+    Serial.printf("Time to print data on tft: %ums\n", (unsigned int)(millis() - m));
+  }
 }
