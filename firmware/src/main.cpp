@@ -36,12 +36,14 @@
 #include "msTimer.h"   // local library
 #include "flasher.h"   // local library
 
-#include <TFT_eSPI.h> // https://github.com/Bodmer/TFT_eSPI
+#include <TFT_eSPI.h>  // https://github.com/Bodmer/TFT_eSPI
+#include <JC_Button.h> // https://github.com/JChristensen/JC_Button
 
 /*
 The following defines are required for the TFT_eSPI library.
 The are to be placed in the library's User_Setup.h.
 Remove conflicting defines.
+
 #define ILI9488_DRIVER 
 #define TFT_WIDTH  320
 #define TFT_HEIGHT 480
@@ -53,29 +55,27 @@ Remove conflicting defines.
 #define TFT_RST 4
 */
 
-#define SD_CHIP_SELECT 22
-#define PIN_STRIP_LOCATIONS 15
+#define PIN_SD_CHIP_SELECT 22
+#define PIN_STRIP_LOCATIONS 27
+#define PIN_BUTTON_LEFT 34
+#define PIN_BUTTON_SELECT 39
+#define PIN_BUTTON_RIGHT 36
 
-const int numLedLocations = 30;
+const int numLEDs = 27; //23 locations and 4 legends
 const int daysDataIsValid = 7;
 const int textIndent = 15;
 const int textStatusY = 293;
 
-//Adafruit_TFT tft = Adafruit_TFT(TFT_CS, TFT_DC, TFT_RST);
 TFT_eSPI tft = TFT_eSPI();
 
-Adafruit_NeoPixel stripLocations = Adafruit_NeoPixel(numLedLocations, PIN_STRIP_LOCATIONS, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel stripLocations = Adafruit_NeoPixel(numLEDs, PIN_STRIP_LOCATIONS, NEO_RGB + NEO_KHZ800);
+
+Button buttonLeft(PIN_BUTTON_LEFT, 25, false, true);
+Button buttonSelect(PIN_BUTTON_SELECT, 25, false, true);
+Button buttonRight(PIN_BUTTON_RIGHT, 25, false, true);
 
 const char *ssid = "RedSky";
 const char *password = "happyredcat";
-
-enum LocationStatus
-{
-  danger,
-  caution,
-  fair,
-  noData
-};
 
 // Location data contains IDs of associated stations.
 // Order of location is order of LEDs.
@@ -86,7 +86,7 @@ struct Location
   String stationIds[maxStationIds]; // Station IDs.
   String shortName;                 // Short name of location.
   String area;                      // Name of general station area.
-  LocationStatus status;            // Status of the location.
+  String status;                    // Status of the location.
 } locations[maxLocations];
 
 bool sdStatus = false;
@@ -190,7 +190,7 @@ bool InitSDCard()
 
   Serial.println("Attempting to mount SD card...");
 
-  while (!SD.begin(SD_CHIP_SELECT))
+  while (!SD.begin(PIN_SD_CHIP_SELECT))
   {
     if (++count > 5)
     {
@@ -275,6 +275,8 @@ bool InitLocationsFromSDCard()
     locations[i].shortName = doc["locations"][i]["shortName"].as<String>();
     locations[i].area = doc["locations"][i]["area"].as<String>();
   }
+
+  Serial.printf("Number of locations found on SD card: %u.\n", numLocations);
 
   return true;
 }
@@ -485,16 +487,44 @@ void UpdateIndicators()
 
 void UpdateLocationIndicators()
 {
-  static int oldSelectedLoctionIndex;
+  static msTimer timerUpdateStatusBuffer(0);
+  static msTimer timerUpdateLEDs(1000);
 
-  if (oldSelectedLoctionIndex != selectedLoctionIndex)
+  if (timerUpdateStatusBuffer.elapsed())
   {
-    oldSelectedLoctionIndex = selectedLoctionIndex;
+    timerUpdateStatusBuffer.setDelay(300000);
+
+    Serial.println("Getting location status from location data stored on SD card.");
 
     for (int i = 0; i < numLocations; i++)
     {
-      stripLocations.setPixelColor(i, locations[i].status == fair ? GREEN : locations[i].status == caution ? YELLOW : locations[i].status == danger ? RED : locations[i].status == noData ? OFF : OFF);
+      String locationDataJson;
+      if (GetJsonFromSDCard("/locations/" + String(i), &locationDataJson))
+      {
+        DynamicJsonDocument doc(2048);
+        DeserializationError error = deserializeJson(doc, locationDataJson);
+        locations[i].status = doc["station"]["locationStatus"].as<String>();
+      }
     }
+  }
+
+  if (timerUpdateLEDs.elapsed())
+  {
+    for (int i = 0; i < numLocations; i++)
+    {
+      stripLocations.setPixelColor(i, locations[i].status == "Fair" ? GREEN : locations[i].status == "Caution" ? YELLOW : locations[i].status == "Danger" ? RED : locations[i].status == "N.A." ? OFF : OFF);
+    }
+
+    stripLocations.setPixelColor(stripLocations.numPixels() - 4, GREEN);
+    stripLocations.setPixelColor(stripLocations.numPixels()  - 3, YELLOW);
+    stripLocations.setPixelColor(stripLocations.numPixels()  - 2, RED);
+    stripLocations.setPixelColor(stripLocations.numPixels()  - 1, OFF);
+
+    for (int i = 0; i < stripLocations.numPixels(); i++)
+    {
+      Serial.println(stripLocations.getPixelColor(i));
+    }
+
     stripLocations.show();
   }
 }
@@ -605,6 +635,42 @@ bool GetDataFromAPI(int loctionIndex)
   return true;
 }
 
+void CheckButtons()
+{
+  buttonLeft.read();
+  buttonSelect.read();
+  buttonRight.read();
+
+  if (buttonLeft.wasPressed())
+  {
+    if (selectedLoctionIndex == 0)
+    {
+      selectedLoctionIndex = numLocations - 1;
+    }
+    else
+    {
+      selectedLoctionIndex--;
+    }
+  }
+
+  if (buttonSelect.wasPressed())
+  {
+  }
+
+  if (buttonSelect.pressedFor(3000))
+  {
+    // TODO: show error messages?
+  }
+
+  if (buttonRight.wasPressed())
+  {
+    if (++selectedLoctionIndex > numLocations - 1)
+    {
+      selectedLoctionIndex = 0;
+    }
+  }
+}
+
 void setup()
 {
   Serial.begin(115200);
@@ -614,6 +680,10 @@ void setup()
 
   stripLocations.begin();
   stripLocations.show();
+
+  buttonLeft.begin();
+  buttonSelect.begin();
+  buttonRight.begin();
 
   tft.begin();
   tft.fillScreen(TFT_BLACK);
@@ -668,6 +738,10 @@ void loop(void)
   static msTimer timerApi(5000);
   static msTimer timerTime(0);
 
+  UpdateIndicators();
+
+  UpdateLocationIndicators();
+
   if (WiFi.status() == WL_CONNECTED)
   {
     wifiStatus = true;
@@ -680,11 +754,12 @@ void loop(void)
 
     if (timerApi.elapsed())
     {
-      dataApiStatus = GetDataFromAPI(selectedLoctionIndex);
+      static int apiLoctionIndex = 0;
+      dataApiStatus = GetDataFromAPI(apiLoctionIndex);
 
-      if (++selectedLoctionIndex > numLocations - 1)
+      if (++apiLoctionIndex > numLocations - 1)
       {
-        selectedLoctionIndex = 0;
+        apiLoctionIndex = 0;
       }
     }
   }
@@ -694,10 +769,6 @@ void loop(void)
     dataApiStatus = false;
     timeApiStatus = false;
   }
-
-  UpdateIndicators();
-
-  UpdateLocationIndicators();
 
   // Update location on screen.
   static int oldSelectedLoctionIndex;

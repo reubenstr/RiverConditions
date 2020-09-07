@@ -127,7 +127,7 @@ function parse_station_json($usgsJson, $wrJson)
     // Init variables.
     $array = array();
 	$noData = "N.A.";
-	$stationStatus = "";
+	$locationStatus = "";
 
     $usgsId = "";
     $wrId = "";
@@ -253,21 +253,21 @@ function parse_station_json($usgsJson, $wrJson)
 	
 	if ($bacteria_threshold_safety == "Danger" || $e_coli_concentration_safety == "Danger")
 	{
-		$stationStatus = "Danger";
+		$locationStatus = "Danger";
 	}
 	else if ($bacteria_threshold_safety == "Fair" || $e_coli_concentration_safety == "Fair")
 	{	
-		$stationStatus = "Fair";				
+		$locationStatus = "Fair";				
 	}
 	
 	if ($stream_flow_safety == "Danger" || $gauge_height_safety == "Danger")
 	{		
-		$stationStatus = "Danger";
+		$locationStatus = "Danger";
 	}
 	
-	if ($stationStatus != "Danger" && $water_temp_c_safety == "Caution")
+	if ($locationStatus != "Danger" && $water_temp_c_safety == "Caution")
 	{
-		$stationStatus = "Caution";
+		$locationStatus = "Caution";
 	}
 
 
@@ -282,7 +282,7 @@ function parse_station_json($usgsJson, $wrJson)
         'usgsDescription' => $usgsDescription,
         'wrDescription' => $wrDescription,
         'recordTime' => $recordTime,
-		'stationStatus' => $stationStatus
+		'locationStatus' => $locationStatus
     );	
 	
     $array['data'] = array(
