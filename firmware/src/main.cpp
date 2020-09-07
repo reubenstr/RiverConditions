@@ -31,13 +31,14 @@
 #include <ArduinoJson.h>
 #include <SPI.h>
 #include <SD.h>
-#include <Adafruit_NeoPixel.h>
 #include "utilities.h" // local library
 #include "msTimer.h"   // local library
 #include "flasher.h"   // local library
 
 #include <TFT_eSPI.h>  // https://github.com/Bodmer/TFT_eSPI
 #include <JC_Button.h> // https://github.com/JChristensen/JC_Button
+
+#include "FastLED.h"
 
 /*
 The following defines are required for the TFT_eSPI library.
@@ -55,11 +56,18 @@ Remove conflicting defines.
 #define TFT_RST 4
 */
 
-#define PIN_SD_CHIP_SELECT 22
-#define PIN_STRIP_LOCATIONS 27
-#define PIN_BUTTON_LEFT 34
-#define PIN_BUTTON_SELECT 39
 #define PIN_BUTTON_RIGHT 36
+#define PIN_BUTTON_SELECT 39
+#define PIN_BUTTON_LEFT 34
+
+#define PIN_INDICATOR_SIGN 32
+#define PIN_INDICATOR_RIGHT 33
+#define PIN_INDICATOR_SELECT 25
+#define PIN_INDICATOR_LEFT 26
+
+#define PIN_STRIP_LOCATIONS 27
+
+#define PIN_SD_CHIP_SELECT 22
 
 const int numLEDs = 27; //23 locations and 4 legends
 const int daysDataIsValid = 7;
@@ -68,11 +76,11 @@ const int textStatusY = 293;
 
 TFT_eSPI tft = TFT_eSPI();
 
-Adafruit_NeoPixel stripLocations = Adafruit_NeoPixel(numLEDs, PIN_STRIP_LOCATIONS, NEO_RGB + NEO_KHZ800);
+CRGB leds[numLEDs];
 
-Button buttonLeft(PIN_BUTTON_LEFT, 25, false, true);
-Button buttonSelect(PIN_BUTTON_SELECT, 25, false, true);
-Button buttonRight(PIN_BUTTON_RIGHT, 25, false, true);
+Button buttonLeft(PIN_BUTTON_LEFT, 25, false, false);
+Button buttonSelect(PIN_BUTTON_SELECT, 25, false, false);
+Button buttonRight(PIN_BUTTON_RIGHT, 25, false, false);
 
 const char *ssid = "RedSky";
 const char *password = "happyredcat";
@@ -512,20 +520,15 @@ void UpdateLocationIndicators()
   {
     for (int i = 0; i < numLocations; i++)
     {
-      stripLocations.setPixelColor(i, locations[i].status == "Fair" ? GREEN : locations[i].status == "Caution" ? YELLOW : locations[i].status == "Danger" ? RED : locations[i].status == "N.A." ? OFF : OFF);
+      leds[i] = locations[i].status == "Fair" ? GREEN : locations[i].status == "Caution" ? YELLOW : locations[i].status == "Danger" ? RED : locations[i].status == "N.A." ? OFF : OFF;
     }
 
-    stripLocations.setPixelColor(stripLocations.numPixels() - 4, GREEN);
-    stripLocations.setPixelColor(stripLocations.numPixels()  - 3, YELLOW);
-    stripLocations.setPixelColor(stripLocations.numPixels()  - 2, RED);
-    stripLocations.setPixelColor(stripLocations.numPixels()  - 1, OFF);
+    leds[numLEDs - 4] = CRGB::Green;
+    leds[numLEDs - 3] = CRGB::Yellow;
+    leds[numLEDs - 2] = CRGB::Red;
+    leds[numLEDs - 1] = CRGB::Red;
 
-    for (int i = 0; i < stripLocations.numPixels(); i++)
-    {
-      Serial.println(stripLocations.getPixelColor(i));
-    }
-
-    stripLocations.show();
+    FastLED.show();
   }
 }
 
@@ -637,6 +640,12 @@ bool GetDataFromAPI(int loctionIndex)
 
 void CheckButtons()
 {
+
+  // Illuminate buttons when pressed.
+  digitalWrite(PIN_INDICATOR_LEFT, !buttonLeft.isPressed());
+  digitalWrite(PIN_INDICATOR_SELECT, !buttonSelect.isPressed());
+  digitalWrite(PIN_INDICATOR_RIGHT, !buttonRight.isPressed());
+
   buttonLeft.read();
   buttonSelect.read();
   buttonRight.read();
@@ -651,10 +660,12 @@ void CheckButtons()
     {
       selectedLoctionIndex--;
     }
+    Serial.println(selectedLoctionIndex);
   }
 
   if (buttonSelect.wasPressed())
   {
+    Serial.println(selectedLoctionIndex);
   }
 
   if (buttonSelect.pressedFor(3000))
@@ -668,6 +679,7 @@ void CheckButtons()
     {
       selectedLoctionIndex = 0;
     }
+    Serial.println(selectedLoctionIndex);
   }
 }
 
@@ -678,12 +690,29 @@ void setup()
   delay(10);
   Serial.println("River Conditions starting up...");
 
-  stripLocations.begin();
-  stripLocations.show();
+  FastLED.addLeds<NEOPIXEL, PIN_STRIP_LOCATIONS>(leds, numLEDs);
 
   buttonLeft.begin();
   buttonSelect.begin();
   buttonRight.begin();
+
+  pinMode(PIN_INDICATOR_LEFT, OUTPUT);
+  pinMode(PIN_INDICATOR_SELECT, OUTPUT);
+  pinMode(PIN_INDICATOR_RIGHT, OUTPUT);
+
+  pinMode(PIN_INDICATOR_SIGN, OUTPUT);
+
+  /*
+  digitalWrite(PIN_INDICATOR_LEFT , LOW);
+  digitalWrite(PIN_INDICATOR_SELECT , LOW);
+  digitalWrite(PIN_INDICATOR_RIGHT , LOW);
+  digitalWrite(PIN_INDICATOR_SIGN , LOW);
+  */
+
+  const int indicatorSignChannel = 0;
+  ledcSetup(0, 500, 8);
+  ledcAttachPin(PIN_INDICATOR_SIGN, 0);
+  ledcWrite(indicatorSignChannel, 60);
 
   tft.begin();
   tft.fillScreen(TFT_BLACK);
@@ -737,6 +766,8 @@ void loop(void)
 
   static msTimer timerApi(5000);
   static msTimer timerTime(0);
+
+  CheckButtons();
 
   UpdateIndicators();
 
