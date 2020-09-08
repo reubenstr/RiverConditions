@@ -1,0 +1,13 @@
+{
+  "wifiCredentials": [
+    {
+      "ssid": "RedSky",
+      "password": "happyredcat"
+    },
+    {
+      "ssid": "Hermes",
+      "password": "Mlx5ykch"
+    }
+  ],
+  "time zone": "EST"
+}

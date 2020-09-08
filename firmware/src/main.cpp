@@ -59,15 +59,14 @@ Remove conflicting defines.
 #define PIN_BUTTON_RIGHT 36
 #define PIN_BUTTON_SELECT 39
 #define PIN_BUTTON_LEFT 34
-
 #define PIN_INDICATOR_SIGN 32
 #define PIN_INDICATOR_RIGHT 33
 #define PIN_INDICATOR_SELECT 25
 #define PIN_INDICATOR_LEFT 26
-
 #define PIN_STRIP_LOCATIONS 27
-
 #define PIN_SD_CHIP_SELECT 22
+
+const unsigned long timeBetweenApiCalls = 60000; // Time in milliseconds between API calls for location data.
 
 const int numLEDs = 27; //23 locations and 4 legends
 const int daysDataIsValid = 7;
@@ -82,8 +81,15 @@ Button buttonLeft(PIN_BUTTON_LEFT, 25, false, false);
 Button buttonSelect(PIN_BUTTON_SELECT, 25, false, false);
 Button buttonRight(PIN_BUTTON_RIGHT, 25, false, false);
 
-const char *ssid = "RedSky";
-const char *password = "happyredcat";
+struct WifiCredentials
+{
+  String ssid;
+  String password;
+} wifiCredentials[10];
+
+const char *wifiFilePath = "/wifi.txt";
+int numWifiCredentials = 0;
+String timeZone = "EST";
 
 // Location data contains IDs of associated stations.
 // Order of location is order of LEDs.
@@ -108,9 +114,9 @@ String dataApiErrorMessage;
 int numLocations;
 int selectedLoctionIndex;
 String currentTime;
-int displayScreen;
 
-String timeZone = "EST";
+int displayScreen;
+const int numDisplayScreens = 2;
 
 const uint32_t OFF = 0x0000000;
 const uint32_t RED = 0x00FF0000;
@@ -135,6 +141,7 @@ void FatalError(String errorMsg)
   }
 }
 
+// Solution provided by : https://github.com/Bodmer/TFT_eSPI/issues/6
 void charBounds(char c, int16_t *x, int16_t *y,
                 int16_t *minx, int16_t *miny, int16_t *maxx, int16_t *maxy)
 {
@@ -390,53 +397,81 @@ bool UpdateLocationDataOnScreen(int locationIndex, String *locationDataJson, int
       PrintData(1, "Gauge Height:", doc["data"]["gaugeHeight"]["date"].as<String>().substring(0, 10).c_str(), "", color);
 
       color = AreDateTimesWithinNDays(currentTime, doc["data"]["waterTempC"]["date"].as<String>(), daysDataIsValid) ? TFT_GREEN : TFT_RED;
-      PrintData(2, "Water temp.:", doc["data"]["waterTempC"]["date"].as<String>().substring(0, 10).c_str(), "", color);
+      PrintData(2, "Water temperature:", doc["data"]["waterTempC"]["date"].as<String>().substring(0, 10).c_str(), "", color);
 
       color = AreDateTimesWithinNDays(currentTime, doc["data"]["eColiConcentration"]["date"].as<String>(), daysDataIsValid) ? TFT_GREEN : TFT_RED;
-      PrintData(3, "E-coli:", doc["data"]["eColiConcentration"]["date"].as<String>().substring(0, 10).c_str(), "", color);
+      PrintData(3, "E. Coli:", doc["data"]["eColiConcentration"]["date"].as<String>().substring(0, 10).c_str(), "", color);
 
       color = AreDateTimesWithinNDays(currentTime, doc["data"]["bacteriaThreshold"]["date"].as<String>(), daysDataIsValid) ? TFT_GREEN : TFT_RED;
-      PrintData(4, "Bac. threshold:", doc["data"]["bacteriaThreshold"]["date"].as<String>().substring(0, 10).c_str(), "", color);
+      PrintData(4, "Bacteria threshold:", doc["data"]["bacteriaThreshold"]["date"].as<String>().substring(0, 10).c_str(), "", color);
     }
   }
 
   return true;
 }
 
-/*
-bool GetParametersFromSDCard()
+void UpdateDisplay()
 {
-    File file = SD.open(wifiFilePath);
-
-    Serial.println("Attempting to fetch parameters from SD card...");
-
+  String locationDataJson;
+  if (!GetJsonFromSDCard("/locations/" + String(selectedLoctionIndex), &locationDataJson))
+  {
+    // Check SD card for connectivity.
+    String path = "/locations.json";
+    File file = SD.open(path);
     if (!file)
     {
-        Serial.printf("Failed to open file: %s\n", wifiFilePath);
-        file.close();
-        return false;
-    }
-    else
-    {
-        DynamicJsonDocument doc(2048);
-        DeserializationError error = deserializeJson(doc, file.readString());
-
-        if (error)
-        {
-            Serial.print(F("DeserializeJson() failed: "));
-            Serial.println(error.c_str());
-            return false;
-        }
-
-        ssid = doc["ssid"].as<String>();
-        password = doc["password"].as<String>();
-        timeZone = doc["time zone"].as<String>();
-        brightness = doc["brightness"].as<int>();         
+      FatalError("SD card not detected.\nTurn off device and\nreinsert valid SD card.");
     }
     file.close();
-    return true;
+  }
+
+  unsigned long m = millis();
+
+  UpdateLocationDataOnScreen(selectedLoctionIndex, &locationDataJson, displayScreen);
+
+  Serial.printf("Time to print data on tft: %ums\n", (unsigned int)(millis() - m));
 }
-*/
+
+bool GetParametersFromSDCard()
+{
+  File file = SD.open(wifiFilePath);
+
+  Serial.println("Attempting to fetch parameters from SD card...");
+
+  if (!file)
+  {
+    Serial.printf("Failed to open file: %s\n", wifiFilePath);
+    file.close();
+    return false;
+  }
+  else
+  {
+    DynamicJsonDocument doc(2048);
+    DeserializationError error = deserializeJson(doc, file.readString());
+
+    if (error)
+    {
+      Serial.print(F("DeserializeJson() failed: "));
+      Serial.println(error.c_str());
+      return false;
+    }
+
+    numWifiCredentials = doc["wifiCredentials"].size();
+
+    for (int i = 0; i < numWifiCredentials; i++)
+    {
+      wifiCredentials[i].ssid = doc["wifiCredentials"][i]["ssid"].as<String>();
+      wifiCredentials[i].password = doc["wifiCredentials"][i]["password"].as<String>();
+
+      Serial.println(wifiCredentials[i].ssid);
+      Serial.println(wifiCredentials[i].password);
+    }
+
+    timeZone = doc["time zone"].as<String>();
+  }
+  file.close();
+  return true;
+}
 
 void DisplayLayout()
 {
@@ -496,8 +531,9 @@ void UpdateIndicators()
 void UpdateLocationIndicators()
 {
   static msTimer timerUpdateStatusBuffer(0);
-  static msTimer timerUpdateLEDs(1000);
+  static msTimer timerUpdateLEDs(50);
 
+  // Refresh status data from SD card.
   if (timerUpdateStatusBuffer.elapsed())
   {
     timerUpdateStatusBuffer.setDelay(300000);
@@ -516,6 +552,15 @@ void UpdateLocationIndicators()
     }
   }
 
+  // Update all LEDs.
+  static msTimer timerFlash(750);
+  static bool flashToggle;
+
+  if (timerFlash.elapsed())
+  {
+    flashToggle = !flashToggle;
+  }
+
   if (timerUpdateLEDs.elapsed())
   {
     for (int i = 0; i < numLocations; i++)
@@ -523,11 +568,15 @@ void UpdateLocationIndicators()
       leds[i] = locations[i].status == "Fair" ? GREEN : locations[i].status == "Caution" ? YELLOW : locations[i].status == "Danger" ? RED : locations[i].status == "N.A." ? OFF : OFF;
     }
 
+    if (flashToggle)
+      leds[selectedLoctionIndex] = CRGB::Blue;
+
     leds[numLEDs - 4] = CRGB::Green;
     leds[numLEDs - 3] = CRGB::Yellow;
     leds[numLEDs - 2] = CRGB::Red;
-    leds[numLEDs - 1] = CRGB::Red;
+    leds[numLEDs - 1] = CRGB::Black;
 
+    delay(10);
     FastLED.show();
   }
 }
@@ -660,12 +709,14 @@ void CheckButtons()
     {
       selectedLoctionIndex--;
     }
-    Serial.println(selectedLoctionIndex);
   }
 
   if (buttonSelect.wasPressed())
   {
-    Serial.println(selectedLoctionIndex);
+    if (++displayScreen > numDisplayScreens - 1)
+    {
+      displayScreen = 0;
+    }
   }
 
   if (buttonSelect.pressedFor(3000))
@@ -679,7 +730,47 @@ void CheckButtons()
     {
       selectedLoctionIndex = 0;
     }
-    Serial.println(selectedLoctionIndex);
+  }
+}
+
+bool ConnectWifi()
+{
+  int wifiCredentialsIndex = 0;
+
+  while (1)
+  {
+    tft.fillScreen(TFT_BLACK);
+    tft.setCursor(0, 0);
+    tft.setTextSize(2);
+    tft.setTextColor(TFT_GREEN);
+    tft.printf("Connecting to WiFi\n");
+    tft.printf("SSID: %s\n", wifiCredentials[wifiCredentialsIndex].ssid.c_str());
+    tft.printf("Password: %s\n", wifiCredentials[wifiCredentialsIndex].password.c_str());
+
+    Serial.printf("Connecting to SSID: %s, with password: %s\n", wifiCredentials[wifiCredentialsIndex].ssid.c_str(), wifiCredentials[wifiCredentialsIndex].password.c_str());
+
+    WiFi.begin(wifiCredentials[wifiCredentialsIndex].ssid.c_str(), wifiCredentials[wifiCredentialsIndex].password.c_str());
+
+    int count = 0;
+    while (count++ < 10)
+    {
+      delay(500);
+      tft.print(".");
+      Serial.print(".");
+
+      if (WiFi.status() == WL_CONNECTED)
+      {
+        return true;
+      }
+    }
+
+    Serial.println("");
+
+    if (++wifiCredentialsIndex == numWifiCredentials)
+    {
+      // Wifi not connected, attempted all credentials.
+      return false;
+    }
   }
 }
 
@@ -699,15 +790,7 @@ void setup()
   pinMode(PIN_INDICATOR_LEFT, OUTPUT);
   pinMode(PIN_INDICATOR_SELECT, OUTPUT);
   pinMode(PIN_INDICATOR_RIGHT, OUTPUT);
-
   pinMode(PIN_INDICATOR_SIGN, OUTPUT);
-
-  /*
-  digitalWrite(PIN_INDICATOR_LEFT , LOW);
-  digitalWrite(PIN_INDICATOR_SELECT , LOW);
-  digitalWrite(PIN_INDICATOR_RIGHT , LOW);
-  digitalWrite(PIN_INDICATOR_SIGN , LOW);
-  */
 
   const int indicatorSignChannel = 0;
   ledcSetup(0, 500, 8);
@@ -716,7 +799,9 @@ void setup()
 
   tft.begin();
   tft.fillScreen(TFT_BLACK);
+  delay(25); // Delay required to allow rotation to take effect.
   tft.setRotation(1);
+  delay(25); // Delay required to allow rotation to take effect.
 
   if (!InitSDCard())
   {
@@ -727,6 +812,11 @@ void setup()
     sdStatus = true;
   }
 
+  if (!GetParametersFromSDCard())
+  {
+    FatalError("Failed to get parameters from SD card.\n(wifi.txt required)");
+  }
+
   if (!InitLocationsFromSDCard())
   {
     FatalError("Failed to get location init data.\n(locations.json required)");
@@ -734,38 +824,25 @@ void setup()
 
   UpdateLocationIndicators();
 
-  tft.setTextSize(2);
-  tft.setTextColor(TFT_GREEN);
-  tft.printf("Connecting to WiFi\n");
-  tft.printf("SSID: %s\n", ssid);
-  tft.printf("Password: %s\n", password);
-
-  Serial.printf("Connecting to SSID: %s, with password: %s\n", ssid, password);
-
-  WiFi.begin(ssid, password);
-
-  while (WiFi.status() != WL_CONNECTED)
+  if (ConnectWifi())
   {
-    delay(500);
-    tft.print(".");
-    Serial.print(".");
+    Serial.println("");
+    Serial.println("WiFi connected");
+    Serial.println("IP address: ");
+    Serial.println(WiFi.localIP());
+  }
+  else
+  {
+    Serial.println("WiFi not connected.");
   }
 
-  Serial.println("");
-  Serial.println("WiFi connected");
-  Serial.println("IP address: ");
-  Serial.println(WiFi.localIP());
-
   DisplayLayout();
-
-  UpdateIndicators();
 }
 
 void loop(void)
 {
-
-  static msTimer timerApi(5000);
   static msTimer timerTime(0);
+  static msTimer timerApi(0);
 
   CheckButtons();
 
@@ -773,19 +850,21 @@ void loop(void)
 
   UpdateLocationIndicators();
 
+  // Fetch data from API(s).
   if (WiFi.status() == WL_CONNECTED)
   {
     wifiStatus = true;
 
     if (timerTime.elapsed())
     {
-      timerTime.setDelay(60000);
+      timerTime.setDelay(timeBetweenApiCalls);
       timeApiStatus = UpdateTime();
     }
 
     if (timerApi.elapsed())
     {
       static int apiLoctionIndex = 0;
+      timerApi.setDelay(timeBetweenApiCalls);
       dataApiStatus = GetDataFromAPI(apiLoctionIndex);
 
       if (++apiLoctionIndex > numLocations - 1)
@@ -801,27 +880,28 @@ void loop(void)
     timeApiStatus = false;
   }
 
+  // Screen display timeout.
+  static int OldDisplayScreen;
+  static msTimer timerDelayScreen(4000);
+  if (OldDisplayScreen != displayScreen)
+  {
+    OldDisplayScreen = displayScreen;
+    timerDelayScreen.resetDelay();
+    Serial.printf("Display screen changed to screen: %u.\n", displayScreen);
+    UpdateDisplay();
+  }
+
+  if (timerDelayScreen.elapsed())
+  {
+    displayScreen = 0;
+    OldDisplayScreen = displayScreen;
+  }
+
   // Update location on screen.
-  static int oldSelectedLoctionIndex;
+  static int oldSelectedLoctionIndex = -1;
   if (oldSelectedLoctionIndex != selectedLoctionIndex)
   {
     oldSelectedLoctionIndex = selectedLoctionIndex;
-
-    String locationDataJson;
-    if (!GetJsonFromSDCard("/locations/" + String(selectedLoctionIndex), &locationDataJson))
-    {
-      // Check SD card for connectivity.
-      String path = "/locations.json";
-      File file = SD.open(path);
-      if (!file)
-      {
-        FatalError("SD card not detected.\nTurn off device and\nreinsert valid SD card.");
-      }
-      file.close();
-    }
-
-    unsigned long m = millis();
-    UpdateLocationDataOnScreen(selectedLoctionIndex, &locationDataJson, displayScreen);
-    Serial.printf("Time to print data on tft: %ums\n", (unsigned int)(millis() - m));
+    UpdateDisplay();
   }
 }
