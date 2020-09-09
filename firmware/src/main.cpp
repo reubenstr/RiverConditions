@@ -77,9 +77,9 @@ TFT_eSPI tft = TFT_eSPI();
 
 CRGB leds[numLEDs];
 
-Button buttonLeft(PIN_BUTTON_LEFT, 25, false, false);
-Button buttonSelect(PIN_BUTTON_SELECT, 25, false, false);
-Button buttonRight(PIN_BUTTON_RIGHT, 25, false, false);
+Button buttonLeft(PIN_BUTTON_LEFT, 25, false, true);
+Button buttonSelect(PIN_BUTTON_SELECT, 25, false, true);
+Button buttonRight(PIN_BUTTON_RIGHT, 25, false, true);
 
 struct WifiCredentials
 {
@@ -113,6 +113,7 @@ String dataApiErrorMessage;
 
 int numLocations;
 int selectedLoctionIndex;
+int apiLoctionIndex = 0;
 String currentTime;
 
 int displayScreen;
@@ -124,8 +125,133 @@ const uint32_t GREEN = 0x0000FF00;
 const uint32_t BLUE = 0x000000FF;
 const uint32_t YELLOW = 0x00F0F000;
 
+bool GetJsonFromSDCard(String fileName, String *locationDataJson)
+{
+  String path = "/" + fileName + ".json";
+
+  Serial.print("Reading file: ");
+  Serial.println(path);
+
+  File file = SD.open(path);
+
+  if (!file)
+  {
+    Serial.println("Failed to open file for reading.");
+    return false;
+  }
+
+  *locationDataJson = file.readString();
+
+  file.close();
+  return true;
+}
+
+bool InitLocationsFromSDCard()
+{
+  String stationInitDataJson;
+
+  if (!GetJsonFromSDCard("locations", &stationInitDataJson))
+  {
+    return false;
+  }
+
+  DynamicJsonDocument doc(4096);
+  DeserializationError error = deserializeJson(doc, stationInitDataJson);
+
+  if (error)
+  {
+    Serial.print(F("DeserializeJson() failed: "));
+    Serial.println(error.c_str());
+    return false;
+  }
+
+  numLocations = doc["locations"].size();
+
+  for (int i = 0; i < numLocations; i++)
+  {
+    for (int u = 0; u < doc["locations"][i]["stationIds"].size(); u++)
+    {
+      locations[i].stationIds[u] = doc["locations"][i]["stationIds"][u].as<String>();
+    }
+    locations[i].shortName = doc["locations"][i]["shortName"].as<String>();
+    locations[i].area = doc["locations"][i]["area"].as<String>();
+  }
+
+  Serial.printf("Number of locations found on SD card: %u.\n", numLocations);
+
+  return true;
+}
+
+void UpdateLocationIndicators(bool allOffFlag = false)
+{
+  static msTimer timerUpdateStatusBuffer(0);
+  static msTimer timerUpdateLEDs(50);
+
+  // Turn off all indicators.
+  if (allOffFlag)
+  {
+    for (int i = 0; i < numLEDs; i++)
+    {
+      leds[i] = CRGB::Black;
+      delay(10);
+      FastLED.show();
+    }
+    return;
+  }
+
+  // Refresh status data from SD card.
+  if (timerUpdateStatusBuffer.elapsed())
+  {
+    timerUpdateStatusBuffer.setDelay(300000);
+
+    Serial.println("Getting location status from location data stored on SD card.");
+
+    for (int i = 0; i < numLocations; i++)
+    {
+      String locationDataJson;
+      if (GetJsonFromSDCard("/locations/" + String(i), &locationDataJson))
+      {
+        DynamicJsonDocument doc(2048);
+        deserializeJson(doc, locationDataJson);
+        locations[i].status = doc["station"]["locationStatus"].as<String>();
+      }
+    }
+  }
+
+  // Update all LEDs.
+  static msTimer timerFlash(750);
+  static bool flashToggle;
+
+  if (timerFlash.elapsed())
+  {
+    flashToggle = !flashToggle;
+  }
+
+  if (timerUpdateLEDs.elapsed())
+  {
+    for (int i = 0; i < numLocations; i++)
+    {
+      leds[i] = locations[i].status == "Fair" ? GREEN : locations[i].status == "Caution" ? YELLOW : locations[i].status == "Danger" ? RED : locations[i].status == "N.A." ? OFF : OFF;
+    }
+
+    if (flashToggle)
+      leds[selectedLoctionIndex] = CRGB::Blue;
+
+    leds[numLEDs - 4] = CRGB::Green;
+    leds[numLEDs - 3] = CRGB::Yellow;
+    leds[numLEDs - 2] = CRGB::Red;
+    leds[numLEDs - 1] = CRGB::Black;
+
+    delay(10);
+    FastLED.show();
+  }
+}
+
 void FatalError(String errorMsg)
 {
+
+  UpdateLocationIndicators(true);
+
   tft.fillScreen(TFT_BLACK);
   tft.setTextSize(2);
   tft.setTextColor(TFT_RED);
@@ -239,63 +365,6 @@ bool SaveDataToSDCard(int locationIndex, String data)
   return true;
 }
 
-bool GetJsonFromSDCard(String fileName, String *locationDataJson)
-{
-  String path = "/" + fileName + ".json";
-
-  Serial.print("Reading file: ");
-  Serial.println(path);
-
-  File file = SD.open(path);
-
-  if (!file)
-  {
-    Serial.println("Failed to open file for reading.");
-    return false;
-  }
-
-  *locationDataJson = file.readString();
-
-  file.close();
-  return true;
-}
-
-bool InitLocationsFromSDCard()
-{
-  String stationInitDataJson;
-
-  if (!GetJsonFromSDCard("locations", &stationInitDataJson))
-  {
-    return false;
-  }
-
-  DynamicJsonDocument doc(2048);
-  DeserializationError error = deserializeJson(doc, stationInitDataJson);
-
-  if (error)
-  {
-    Serial.print(F("DeserializeJson() failed: "));
-    Serial.println(error.c_str());
-    return false;
-  }
-
-  numLocations = doc["locations"].size();
-
-  for (int i = 0; i < numLocations; i++)
-  {
-    for (int u = 0; u < doc["locations"][i]["stationIds"].size(); u++)
-    {
-      locations[i].stationIds[u] = doc["locations"][i]["stationIds"][u].as<String>();
-    }
-    locations[i].shortName = doc["locations"][i]["shortName"].as<String>();
-    locations[i].area = doc["locations"][i]["area"].as<String>();
-  }
-
-  Serial.printf("Number of locations found on SD card: %u.\n", numLocations);
-
-  return true;
-}
-
 uint16_t safetyStringToColor(const char *str)
 {
   return !strcmp(str, "N.A.") ? TFT_WHITE : !strcmp(str, "Fair") ? TFT_GREEN : !strcmp(str, "Caution") ? TFT_YELLOW : !strcmp(str, "Danger") ? TFT_RED : TFT_WHITE;
@@ -321,24 +390,29 @@ void PrintData(int line, const char *text, const char *value, const char *units,
 
 void PrinInfo(int line, const char *text, uint16_t color)
 {
+  const int spacesPerLine = 34;
+
   tft.setTextSize(2);
   tft.setCursor(textIndent, 87 + line * 21);
 
   tft.setTextColor(color, TFT_BLACK);
-  tft.printf("%-*s", 25, text);
+  tft.printf("%-*s", spacesPerLine, text);
+}
+
+void PrintTitle(const char *line1, const char *line2, uint16_t color)
+{
+  tft.setTextSize(3);
+  tft.setTextColor(color, TFT_BLACK);
+  tft.setCursor(textIndent, 14);
+  tft.printf("%-24s", line1);
+  tft.setCursor(textIndent, 44);
+  tft.printf("%-24s", line2);
 }
 
 bool UpdateLocationDataOnScreen(int locationIndex, String *locationDataJson, int displayScreen)
 {
-  tft.setTextSize(3);
-  tft.setTextColor(TFT_WHITE, TFT_BLACK);
-  tft.setCursor(textIndent, 14);
-  tft.printf("%-24s", locations[locationIndex].shortName.c_str());
-  tft.setCursor(textIndent, 44);
-  tft.printf("%-24s", locations[locationIndex].area.c_str());
 
-  tft.setTextSize(2);
-  tft.setTextColor(TFT_GREEN, TFT_BLACK);
+  PrintTitle(locations[locationIndex].shortName.c_str(), locations[locationIndex].area.c_str(), TFT_WHITE);
 
   DynamicJsonDocument doc(2048);
   DeserializationError error = deserializeJson(doc, *locationDataJson);
@@ -359,6 +433,7 @@ bool UpdateLocationDataOnScreen(int locationIndex, String *locationDataJson, int
     PrinInfo(5, "", TFT_RED);
     PrinInfo(6, "", TFT_RED);
     PrinInfo(7, "", TFT_RED);
+    PrinInfo(8, "", TFT_RED);
   }
   else
   {
@@ -412,6 +487,26 @@ bool UpdateLocationDataOnScreen(int locationIndex, String *locationDataJson, int
 
 void UpdateDisplay()
 {
+  // Displaying the diagnostic screen takes priority
+  if (displayScreen == 2)
+  {
+    PrintTitle("Diagnostics:", "", TFT_YELLOW);
+
+    char buf[50];
+    PrinInfo(0, "", TFT_YELLOW);
+    sprintf(buf, "Selected location: %u", selectedLoctionIndex);
+    PrinInfo(1, buf, TFT_YELLOW);
+    PrinInfo(2, "", TFT_YELLOW);
+    sprintf(buf, "Next API location: %u", apiLoctionIndex);
+    PrinInfo(3, buf, TFT_YELLOW);
+    PrinInfo(4, "", TFT_YELLOW);
+    PrinInfo(5, "", TFT_YELLOW);
+    PrinInfo(6, "", TFT_YELLOW);
+    PrinInfo(7, "", TFT_YELLOW);
+    PrinInfo(8, "", TFT_YELLOW);
+    return;
+  }
+
   String locationDataJson;
   if (!GetJsonFromSDCard("/locations/" + String(selectedLoctionIndex), &locationDataJson))
   {
@@ -528,59 +623,6 @@ void UpdateIndicators()
   }
 }
 
-void UpdateLocationIndicators()
-{
-  static msTimer timerUpdateStatusBuffer(0);
-  static msTimer timerUpdateLEDs(50);
-
-  // Refresh status data from SD card.
-  if (timerUpdateStatusBuffer.elapsed())
-  {
-    timerUpdateStatusBuffer.setDelay(300000);
-
-    Serial.println("Getting location status from location data stored on SD card.");
-
-    for (int i = 0; i < numLocations; i++)
-    {
-      String locationDataJson;
-      if (GetJsonFromSDCard("/locations/" + String(i), &locationDataJson))
-      {
-        DynamicJsonDocument doc(2048);
-        DeserializationError error = deserializeJson(doc, locationDataJson);
-        locations[i].status = doc["station"]["locationStatus"].as<String>();
-      }
-    }
-  }
-
-  // Update all LEDs.
-  static msTimer timerFlash(750);
-  static bool flashToggle;
-
-  if (timerFlash.elapsed())
-  {
-    flashToggle = !flashToggle;
-  }
-
-  if (timerUpdateLEDs.elapsed())
-  {
-    for (int i = 0; i < numLocations; i++)
-    {
-      leds[i] = locations[i].status == "Fair" ? GREEN : locations[i].status == "Caution" ? YELLOW : locations[i].status == "Danger" ? RED : locations[i].status == "N.A." ? OFF : OFF;
-    }
-
-    if (flashToggle)
-      leds[selectedLoctionIndex] = CRGB::Blue;
-
-    leds[numLEDs - 4] = CRGB::Green;
-    leds[numLEDs - 3] = CRGB::Yellow;
-    leds[numLEDs - 2] = CRGB::Red;
-    leds[numLEDs - 1] = CRGB::Black;
-
-    delay(10);
-    FastLED.show();
-  }
-}
-
 bool UpdateTime()
 {
   String payload;
@@ -691,9 +733,9 @@ void CheckButtons()
 {
 
   // Illuminate buttons when pressed.
-  digitalWrite(PIN_INDICATOR_LEFT, !buttonLeft.isPressed());
-  digitalWrite(PIN_INDICATOR_SELECT, !buttonSelect.isPressed());
-  digitalWrite(PIN_INDICATOR_RIGHT, !buttonRight.isPressed());
+  digitalWrite(PIN_INDICATOR_LEFT, buttonLeft.isPressed());
+  digitalWrite(PIN_INDICATOR_SELECT, buttonSelect.isPressed());
+  digitalWrite(PIN_INDICATOR_RIGHT, buttonRight.isPressed());
 
   buttonLeft.read();
   buttonSelect.read();
@@ -721,7 +763,7 @@ void CheckButtons()
 
   if (buttonSelect.pressedFor(3000))
   {
-    // TODO: show error messages?
+    displayScreen = 2;
   }
 
   if (buttonRight.wasPressed())
@@ -781,7 +823,8 @@ void setup()
   delay(10);
   Serial.println("River Conditions starting up...");
 
-  FastLED.addLeds<NEOPIXEL, PIN_STRIP_LOCATIONS>(leds, numLEDs);
+  FastLED.addLeds<APA106, PIN_STRIP_LOCATIONS>(leds, numLEDs);
+  FastLED.setBrightness(200);
 
   buttonLeft.begin();
   buttonSelect.begin();
@@ -795,7 +838,7 @@ void setup()
   const int indicatorSignChannel = 0;
   ledcSetup(0, 500, 8);
   ledcAttachPin(PIN_INDICATOR_SIGN, 0);
-  ledcWrite(indicatorSignChannel, 60);
+  ledcWrite(indicatorSignChannel, 127);
 
   tft.begin();
   tft.fillScreen(TFT_BLACK);
@@ -863,7 +906,6 @@ void loop(void)
 
     if (timerApi.elapsed())
     {
-      static int apiLoctionIndex = 0;
       timerApi.setDelay(timeBetweenApiCalls);
       dataApiStatus = GetDataFromAPI(apiLoctionIndex);
 
@@ -882,7 +924,7 @@ void loop(void)
 
   // Screen display timeout.
   static int OldDisplayScreen;
-  static msTimer timerDelayScreen(4000);
+  static msTimer timerDelayScreen(6000);
   if (OldDisplayScreen != displayScreen)
   {
     OldDisplayScreen = displayScreen;

@@ -46,8 +46,8 @@ foreach ($stationIdArray as $sId)
 // Get json.
 if ($usgsId != null)
 {
-    //$usgsJson = get_json("USGS", $usgsId);
-    $usgsJson = file_get_contents('usgsTestData.json'); // TEMP    
+    $usgsJson = get_json("USGS", $usgsId);
+    //$usgsJson = file_get_contents('usgsTestData.json'); // TEMP    
 }
 else
 {
@@ -56,8 +56,8 @@ else
 
 if ($wrId != null)
 {
-    //$wrJson = get_json("WR", $wrId);
-    $wrJson = file_get_contents('wrTestData.json'); // TEMP    
+    $wrJson = get_json("WR", $wrId);
+    //$wrJson = file_get_contents('wrTestData.json'); // TEMP    
 }
 else
 {
@@ -79,7 +79,7 @@ function get_json($stationType, $stationId)
     // Check if json exists in cache and is valid.
     if (file_exists($cacheFile))
     {
-        if (filemtime($cacheFile) > strtotime('-600 minutes'))
+        if (filemtime($cacheFile) > strtotime('-720 minutes'))
         {
             $fh = fopen($cacheFile, 'r');
 
@@ -251,7 +251,10 @@ function parse_station_json($usgsJson, $wrJson)
 
 	// determin station status (displayed on dashboard's LEDs)
 	
-	if ($bacteria_threshold_safety == "Danger" || $e_coli_concentration_safety == "Danger")
+	$locationStatus = "Fair";
+	
+	// $bacteria_threshold_safety == "Danger" ||
+	if ( $e_coli_concentration_safety == "Danger")
 	{
 		$locationStatus = "Danger";
 	}

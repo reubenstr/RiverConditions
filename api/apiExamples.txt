@@ -1,6 +1,8 @@
-Local midpoint examples:
+Midpoint API:
+Gets location data (station data):
 http://artofmystate.com/api/riverconditions.php?stationId=8863
 
+---------------------------------------------------------------------------
 
 
 USGS Water Services:
@@ -29,7 +31,7 @@ https://waterwatch.usgs.gov/?m=real&r=va
 Station landing pages contain an interactive map of nearby stations (helps gather 8 digit station id):
 https://waterdata.usgs.gov/monitoring-location/02029000/
 	
--------------------------
+---------------------------------------------------------------------------
 	
 Get station information:	
 	
@@ -37,7 +39,7 @@ USGS-02029000
 https://www.waterqualitydata.us/data/Station/search?siteid=USGS-02029000&characteristicName=Atrazine&mimeType=geojson	
 
 
--------------
+---------------------------------------------------------------------------
 
 Water reporter:
 
@@ -56,7 +58,7 @@ Example sites using data with reference to water report:
 https://www.rivannariver.org/monitoring-about/
 https://www.theswimguide.org/beach/7853
 
------------------------------
+---------------------------------------------------------------------------
 Rivanna Convervation Alliance:
 
 Bateria map with data:
@@ -72,7 +74,7 @@ Rest-able data:
 https://services2.arcgis.com/9vP1BgQvmKmOU0Rj/ArcGIS/rest/services/RCABacteriaData2020/FeatureServer
 https://services2.arcgis.com/9vP1BgQvmKmOU0Rj/ArcGIS/rest/services/RCABacteriaData2020/FeatureServer/0
 
------------------------------------------------------------------------------
+---------------------------------------------------------------------------
 Misc API / data sets:
 
 Chesapeake Data Explorer:
@@ -86,15 +88,11 @@ http://data.chesapeakebay.net/API
 http://data.chesapeakebay.net/WaterQuality
 http://data.chesapeakebay.net/API#waterquality
 
---------------------------------------------------------
-
-
-
+---------------------------------------------------------------------------
 
 Water monitoring sites API:
 Intro: https://waterdata.usgs.gov/blog/nldi-intro/
 API example: https://labs.waterdata.usgs.gov/api/nldi/linked-data/nwissite/USGS-02029000
-
 
 
 Other links:
@@ -104,6 +102,13 @@ https://www.jamesriverwatch.org/james-river-watch
 
 More USGS locations are mapped out in a location landing page, such a page:
 https://waterdata.usgs.gov/monitoring-location/02029000/
+
+USGS Map:
+https://viewer.nationalmap.gov/basic/
+zoom: 10km/5m (lower right)
+
+Water measurements sites map:
+https://maps.waterdata.usgs.gov/mapper/index.html
 
 
 
