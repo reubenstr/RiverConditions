@@ -193,6 +193,8 @@ void UpdateLocationIndicators(bool allOffFlag = false)
 
   FastLED.setBrightness(indicatorBrightness);
 
+
+
   // Turn off all indicators.
   if (allOffFlag)
   {
@@ -250,6 +252,7 @@ void UpdateLocationIndicators(bool allOffFlag = false)
 
     delay(10);
     FastLED.show();
+
   }
 }
 
@@ -573,12 +576,12 @@ bool GetParametersFromSDCard()
     int indicatorBrightnessParameter = doc["indicatorBrightness"].as<int>();
     int signBrightnessParameter = doc["signBrightness"].as<int>();
 
-    if (indicatorBrightnessParameter > 50 && indicatorBrightnessParameter < 256)
+    if (indicatorBrightnessParameter > 9 && indicatorBrightnessParameter < 256)
     {
       indicatorBrightness = indicatorBrightnessParameter;
     }
 
-    if (signBrightnessParameter > 50 && signBrightnessParameter < 256)
+    if (signBrightnessParameter > 25 && signBrightnessParameter < 256)
     {
       signBrightness = signBrightnessParameter;
     }
