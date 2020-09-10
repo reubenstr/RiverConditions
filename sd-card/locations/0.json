@@ -1,34 +1,40 @@
 {
-  "station": {
-    "usgsId": "02019500",
-    "wrId": "",
-    "usgsName": "JAMES RIVER AT BUCHANAN, VA",
-    "wrName": "",
-    "wrIsActive": "",
-    "usgsDescription": "USGS stream monitoring site.",
-    "wrDescription": "",
-    "recordTime": "2020-08-16T01:37:45+0200"
-  },
-  "data": {
-    "bacteriaThreshold": {
-      "date": "",
-      "value": -9
+    "station": {
+        "usgsId": "02019500",
+        "wrId": "",
+        "usgsName": "JAMES RIVER AT BUCHANAN, VA",
+        "wrName": "",
+        "wrIsActive": "",
+        "usgsDescription": "USGS stream monitoring site.",
+        "wrDescription": "",
+        "recordTime": "2020-09-10T00:52:28+0000",
+        "locationStatus": "Fair"
     },
-    "waterTempC": {
-      "date": "",
-      "value": -9
-    },
-    "eColiConcentration": {
-      "date": "",
-      "value": -9
-    },
-    "streamFlow": {
-      "date": "2020-08-15T15:45:00.000-04:00",
-      "value": 2130
-    },
-    "gaugeHeight": {
-      "date": "2020-08-15T15:45:00.000-04:00",
-      "value": 4
+    "data": {
+        "bacteriaThreshold": {
+            "date": "",
+            "value": "N.A.",
+            "safety": "N.A."
+        },
+        "waterTempC": {
+            "date": "",
+            "value": "N.A.",
+            "safety": "N.A."
+        },
+        "eColiConcentration": {
+            "date": "",
+            "value": "N.A.",
+            "safety": "N.A."
+        },
+        "streamFlow": {
+            "date": "2020-09-09T08:00:00.000-04:00",
+            "value": "1280",
+            "safety": "Fair"
+        },
+        "gaugeHeight": {
+            "date": "2020-09-09T08:00:00.000-04:00",
+            "value": "3.20",
+            "safety": "N.A."
+        }
     }
-  }
 }

@@ -1,29 +1,29 @@
 {
     "station": {
         "usgsId": "",
-        "wrId": "8864",
+        "wrId": "18194",
         "usgsName": "",
-        "wrName": "James River at Lynchburg",
+        "wrName": "James River at Osborne Landing",
         "wrIsActive": true,
         "usgsDescription": "",
-        "wrDescription": "This site is monitored by James River Association volunteers.",
-        "recordTime": "2020-09-10T00:32:28+0000",
+        "wrDescription": "This site is surveyed by the Henricopolis Soil and Water Conservation District.",
+        "recordTime": "2020-09-10T00:44:28+0000",
         "locationStatus": "Danger"
     },
     "data": {
         "bacteriaThreshold": {
-            "date": "2020-09-03T11:29:00",
-            "value": "1",
+            "date": "2020-09-03T10:10:00",
+            "value": "0",
             "safety": "Fair"
         },
         "waterTempC": {
-            "date": "2020-09-03T11:29:00",
-            "value": "23.6",
+            "date": "2020-09-03T08:44:59.935384",
+            "value": "25.4",
             "safety": "Caution"
         },
         "eColiConcentration": {
-            "date": "2020-09-03T11:29:00",
-            "value": "567",
+            "date": "2020-09-03T10:10:00",
+            "value": "166.4",
             "safety": "Danger"
         },
         "streamFlow": {

@@ -1,0 +1,40 @@
+{
+    "station": {
+        "usgsId": "02029000",
+        "wrId": "8863",
+        "usgsName": "JAMES RIVER AT SCOTTSVILLE, VA",
+        "wrName": "James River at Scottsville",
+        "wrIsActive": true,
+        "usgsDescription": "USGS stream monitoring site.",
+        "wrDescription": "This site is monitored by James River Association Volunteers.",
+        "recordTime": "2020-09-10T00:34:28+0000",
+        "locationStatus": "Danger"
+    },
+    "data": {
+        "bacteriaThreshold": {
+            "date": "2020-09-03T10:35:00",
+            "value": "0",
+            "safety": "Fair"
+        },
+        "waterTempC": {
+            "date": "2020-09-03T10:35:00",
+            "value": "24.1",
+            "safety": "Caution"
+        },
+        "eColiConcentration": {
+            "date": "2020-09-03T10:35:00",
+            "value": "100",
+            "safety": "Danger"
+        },
+        "streamFlow": {
+            "date": "2020-09-09T08:15:00.000-04:00",
+            "value": "3710",
+            "safety": "Fair"
+        },
+        "gaugeHeight": {
+            "date": "2020-09-09T08:15:00.000-04:00",
+            "value": "4.58",
+            "safety": "N.A."
+        }
+    }
+}

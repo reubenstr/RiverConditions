@@ -67,11 +67,15 @@ Remove conflicting defines.
 #define PIN_SD_CHIP_SELECT 22
 
 const unsigned long timeBetweenApiCalls = 60000; // Time in milliseconds between API calls for location data.
+const unsigned long timeBetweenIndicatorUpdate = 300000;
 
 const int numLEDs = 27; //23 locations and 4 legends
 const int daysDataIsValid = 7;
 const int textIndent = 15;
 const int textStatusY = 293;
+
+int indicatorBrightness = 127;
+int signBrightness = 127;
 
 TFT_eSPI tft = TFT_eSPI();
 
@@ -187,6 +191,8 @@ void UpdateLocationIndicators(bool allOffFlag = false)
   static msTimer timerUpdateStatusBuffer(0);
   static msTimer timerUpdateLEDs(50);
 
+  FastLED.setBrightness(indicatorBrightness);
+
   // Turn off all indicators.
   if (allOffFlag)
   {
@@ -202,7 +208,7 @@ void UpdateLocationIndicators(bool allOffFlag = false)
   // Refresh status data from SD card.
   if (timerUpdateStatusBuffer.elapsed())
   {
-    timerUpdateStatusBuffer.setDelay(300000);
+    timerUpdateStatusBuffer.setDelay(timeBetweenIndicatorUpdate);
 
     Serial.println("Getting location status from location data stored on SD card.");
 
@@ -562,7 +568,20 @@ bool GetParametersFromSDCard()
       Serial.println(wifiCredentials[i].password);
     }
 
-    timeZone = doc["time zone"].as<String>();
+    timeZone = doc["timeZone"].as<String>();
+
+    int indicatorBrightnessParameter = doc["indicatorBrightness"].as<int>();
+    int signBrightnessParameter = doc["signBrightness"].as<int>();
+
+    if (indicatorBrightnessParameter > 50 && indicatorBrightnessParameter < 256)
+    {
+      indicatorBrightness = indicatorBrightnessParameter;
+    }
+
+    if (signBrightnessParameter > 50 && signBrightnessParameter < 256)
+    {
+      signBrightness = signBrightnessParameter;
+    }
   }
   file.close();
   return true;
@@ -824,7 +843,6 @@ void setup()
   Serial.println("River Conditions starting up...");
 
   FastLED.addLeds<APA106, PIN_STRIP_LOCATIONS>(leds, numLEDs);
-  FastLED.setBrightness(200);
 
   buttonLeft.begin();
   buttonSelect.begin();
@@ -834,11 +852,6 @@ void setup()
   pinMode(PIN_INDICATOR_SELECT, OUTPUT);
   pinMode(PIN_INDICATOR_RIGHT, OUTPUT);
   pinMode(PIN_INDICATOR_SIGN, OUTPUT);
-
-  const int indicatorSignChannel = 0;
-  ledcSetup(0, 500, 8);
-  ledcAttachPin(PIN_INDICATOR_SIGN, 0);
-  ledcWrite(indicatorSignChannel, 127);
 
   tft.begin();
   tft.fillScreen(TFT_BLACK);
@@ -866,6 +879,11 @@ void setup()
   }
 
   UpdateLocationIndicators();
+
+  const int indicatorSignChannel = 0;
+  ledcSetup(0, 500, 8);
+  ledcAttachPin(PIN_INDICATOR_SIGN, 0);
+  ledcWrite(indicatorSignChannel, signBrightness);
 
   if (ConnectWifi())
   {

@@ -1,34 +1,40 @@
 {
-  "station": {
-    "usgsId": "02025500",
-    "wrId": "",
-    "usgsName": "JAMES RIVER AT HOLCOMB ROCK, VA",
-    "wrName": "",
-    "wrIsActive": "",
-    "usgsDescription": "USGS stream monitoring site.",
-    "wrDescription": "",
-    "recordTime": "2020-08-16T01:43:57+0200"
-  },
-  "data": {
-    "bacteriaThreshold": {
-      "date": "",
-      "value": -9
+    "station": {
+        "usgsId": "",
+        "wrId": "19656",
+        "usgsName": "",
+        "wrName": "James River at Hardware",
+        "wrIsActive": true,
+        "usgsDescription": "",
+        "wrDescription": "This site is monitored by JRA volunteers.",
+        "recordTime": "2020-09-09T12:11:58+0000",
+        "locationStatus": "Danger"
     },
-    "waterTempC": {
-      "date": "",
-      "value": -9
-    },
-    "eColiConcentration": {
-      "date": "",
-      "value": -9
-    },
-    "streamFlow": {
-      "date": "2020-08-15T18:45:00.000-04:00",
-      "value": 3270
-    },
-    "gaugeHeight": {
-      "date": "2020-08-15T18:45:00.000-04:00",
-      "value": 5
+    "data": {
+        "bacteriaThreshold": {
+            "date": "2020-08-06T10:20:00",
+            "value": "0",
+            "safety": "Fair"
+        },
+        "waterTempC": {
+            "date": "2020-08-06T10:20:00",
+            "value": "28.6",
+            "safety": "Caution"
+        },
+        "eColiConcentration": {
+            "date": "2020-08-06T10:20:00",
+            "value": "34",
+            "safety": "Danger"
+        },
+        "streamFlow": {
+            "date": "",
+            "value": "N.A.",
+            "safety": "N.A."
+        },
+        "gaugeHeight": {
+            "date": "",
+            "value": "N.A.",
+            "safety": "N.A."
+        }
     }
-  }
 }

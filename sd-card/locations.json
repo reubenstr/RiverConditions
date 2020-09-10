@@ -1,38 +1,168 @@
 {
   "locations": [
     {
-      "USGS": [
+      "stationIds": [
         "02019500"
       ],
-      "WR": [],
       "shortName": "James River",
       "area": "Buchanan, Va"
     },
     {
-      "USGS": [
+      "stationIds": [
+        "8866",
+        "2024000"
+      ],
+      "shortName": "Maury River",
+      "area": "Buena Vista, Va"
+    },
+    {
+      "stationIds": [
         "02025500"
       ],
-      "WR": [],
       "shortName": "James River",
       "area": "Holcomb Rock, Va"
     },
     {
-      "USGS": [],
-      "WR": [
+      "stationIds": [
         "8864"
       ],
       "shortName": "James River",
       "area": "Lynchburg, Va"
     },
     {
-      "USGS": [
-        "02029000"
+      "stationIds": [
+        "02026000"
       ],
-      "WR": [
+      "shortName": "James River",
+      "area": "Gladestone, Va"
+    },
+    {
+      "stationIds": [
+        "02029000",
         "8863"
       ],
       "shortName": "James River",
       "area": "Scottsville, Va"
+    },
+    {
+      "stationIds": [
+        "19656"
+      ],
+      "shortName": "James River",
+      "area": "Hardware, Va"
+    },
+    {
+      "stationIds": [
+        "18028"
+      ],
+      "shortName": "James River",
+      "area": "New Canton, Va"
+    },
+    {
+      "stationIds": [
+        "8870"
+      ],
+      "shortName": "Rivanna River",
+      "area": "Charlottesville, VA"
+    },
+    {
+      "stationIds": [
+        "8869"
+      ],
+      "shortName": "Rivanna River",
+      "area": "Charlottesville, VA"
+    },
+    {
+      "stationIds": [
+        "02034000"
+      ],
+      "shortName": "Rivanna River",
+      "area": "Palmyra, VA"
+    },
+    {
+      "stationIds": [
+        "02035000"
+      ],
+      "shortName": "James River",
+      "area": "Cartersville, Va"
+    },
+    {
+      "stationIds": [
+        "8871"
+      ],
+      "shortName": "Tucker Park",
+      "area": "Maidens, Va"
+    },
+    {
+      "stationIds": [
+        "8877"
+      ],
+      "shortName": "James River",
+      "area": "Robious Landing, Va"
+    },
+    {
+      "stationIds": [
+        "8860"
+      ],
+      "shortName": "42nd Street",
+      "area": "Richmond, Va"
+    },
+    {
+      "stationIds": [
+        "18194"
+      ],
+      "shortName": "Osborne Landing",
+      "area": "Chester, Va"
+    },
+    {
+      "stationIds": [
+        "8849"
+      ],
+      "shortName": "City Point",
+      "area": "Hopewell, Va"
+    },
+    {
+      "stationIds": [
+        "2039500",
+        "8878"
+      ],
+      "shortName": "Appomattox River",
+      "area": "Farmville, Va"
+    },
+    {
+      "stationIds": [
+        "2041650"
+      ],
+      "shortName": "Appomattox River",
+      "area": "Matoaca, Va"
+    },
+    {
+      "stationIds": [
+        "8852"
+      ],
+      "shortName": "Chickahominy",
+      "area": "Riverfront Park"
+    },
+    {
+      "stationIds": [
+        "8854"
+      ],
+      "shortName": "Jamestown Beach",
+      "area": "Jamestown, Va"
+    },
+    {
+      "stationIds": [
+        "8874"
+      ],
+      "shortName": "Riverside Beach",
+      "area": "Newport News, Va"
+    },
+    {
+      "stationIds": [
+        "8854"
+      ],
+      "shortName": "Hampton River Marina",
+      "area": "Hampton, Va"
     }
   ]
 }

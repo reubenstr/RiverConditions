@@ -1,29 +1,29 @@
 {
     "station": {
         "usgsId": "",
-        "wrId": "8864",
+        "wrId": "8869",
         "usgsName": "",
-        "wrName": "James River at Lynchburg",
+        "wrName": "Rivanna at Riverview Park",
         "wrIsActive": true,
         "usgsDescription": "",
-        "wrDescription": "This site is monitored by James River Association volunteers.",
-        "recordTime": "2020-09-10T00:32:28+0000",
+        "wrDescription": "This site is monitored by Rivanna Conservation Alliance volunteers. www.rivannariver.org",
+        "recordTime": "2020-09-10T00:38:28+0000",
         "locationStatus": "Danger"
     },
     "data": {
         "bacteriaThreshold": {
-            "date": "2020-09-03T11:29:00",
-            "value": "1",
+            "date": "2020-09-03T09:04:54.162901",
+            "value": "0",
             "safety": "Fair"
         },
         "waterTempC": {
-            "date": "2020-09-03T11:29:00",
-            "value": "23.6",
+            "date": "2020-09-03T09:04:54.162901",
+            "value": "21.9",
             "safety": "Caution"
         },
         "eColiConcentration": {
-            "date": "2020-09-03T11:29:00",
-            "value": "567",
+            "date": "2020-09-03T09:04:54.162901",
+            "value": "228.2",
             "safety": "Danger"
         },
         "streamFlow": {

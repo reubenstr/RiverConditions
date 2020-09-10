@@ -1,29 +1,29 @@
 {
     "station": {
         "usgsId": "",
-        "wrId": "8864",
+        "wrId": "8860",
         "usgsName": "",
-        "wrName": "James River at Lynchburg",
+        "wrName": "James River at 42nd Street",
         "wrIsActive": true,
         "usgsDescription": "",
         "wrDescription": "This site is monitored by James River Association volunteers.",
-        "recordTime": "2020-09-10T00:32:28+0000",
+        "recordTime": "2020-09-10T00:43:28+0000",
         "locationStatus": "Danger"
     },
     "data": {
         "bacteriaThreshold": {
-            "date": "2020-09-03T11:29:00",
+            "date": "2020-09-03T09:25:12",
             "value": "1",
             "safety": "Fair"
         },
         "waterTempC": {
-            "date": "2020-09-03T11:29:00",
-            "value": "23.6",
+            "date": "2020-09-03T09:25:12.004401",
+            "value": "23.8",
             "safety": "Caution"
         },
         "eColiConcentration": {
-            "date": "2020-09-03T11:29:00",
-            "value": "567",
+            "date": "2020-09-03T09:25:12",
+            "value": "648.8",
             "safety": "Danger"
         },
         "streamFlow": {

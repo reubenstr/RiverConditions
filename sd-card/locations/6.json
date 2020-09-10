@@ -1,29 +1,29 @@
 {
     "station": {
         "usgsId": "",
-        "wrId": "8864",
+        "wrId": "19656",
         "usgsName": "",
-        "wrName": "James River at Lynchburg",
+        "wrName": "James River at Hardware",
         "wrIsActive": true,
         "usgsDescription": "",
-        "wrDescription": "This site is monitored by James River Association volunteers.",
-        "recordTime": "2020-09-10T00:32:28+0000",
+        "wrDescription": "This site is monitored by JRA volunteers.",
+        "recordTime": "2020-09-10T00:35:28+0000",
         "locationStatus": "Danger"
     },
     "data": {
         "bacteriaThreshold": {
-            "date": "2020-09-03T11:29:00",
-            "value": "1",
+            "date": "2020-09-03T10:10:00",
+            "value": "0",
             "safety": "Fair"
         },
         "waterTempC": {
-            "date": "2020-09-03T11:29:00",
-            "value": "23.6",
+            "date": "2020-09-03T10:10:00",
+            "value": "24",
             "safety": "Caution"
         },
         "eColiConcentration": {
-            "date": "2020-09-03T11:29:00",
-            "value": "567",
+            "date": "2020-09-03T10:10:00",
+            "value": "167",
             "safety": "Danger"
         },
         "streamFlow": {

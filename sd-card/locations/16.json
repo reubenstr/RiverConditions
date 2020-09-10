@@ -1,29 +1,29 @@
 {
     "station": {
         "usgsId": "",
-        "wrId": "8864",
+        "wrId": "8849",
         "usgsName": "",
-        "wrName": "James River at Lynchburg",
+        "wrName": "Appomattox River at City Point",
         "wrIsActive": true,
         "usgsDescription": "",
-        "wrDescription": "This site is monitored by James River Association volunteers.",
-        "recordTime": "2020-09-10T00:32:28+0000",
+        "wrDescription": "This site is monitored by James River Association Volunteers.",
+        "recordTime": "2020-09-10T00:45:28+0000",
         "locationStatus": "Danger"
     },
     "data": {
         "bacteriaThreshold": {
-            "date": "2020-09-03T11:29:00",
-            "value": "1",
+            "date": "2020-09-03T10:00:05.469005",
+            "value": "0",
             "safety": "Fair"
         },
         "waterTempC": {
-            "date": "2020-09-03T11:29:00",
-            "value": "23.6",
+            "date": "2020-09-03T10:00:05.469005",
+            "value": "26.9",
             "safety": "Caution"
         },
         "eColiConcentration": {
-            "date": "2020-09-03T11:29:00",
-            "value": "567",
+            "date": "2020-09-03T10:00:05.469005",
+            "value": "113",
             "safety": "Danger"
         },
         "streamFlow": {

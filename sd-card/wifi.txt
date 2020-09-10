@@ -1,6 +1,6 @@
 {
-  "wifiCredentials": [
-    {
+  "wifiCredentials": [    
+	{
       "ssid": "RedSky",
       "password": "happyredcat"
     },

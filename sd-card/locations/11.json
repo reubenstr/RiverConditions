@@ -1,13 +1,13 @@
 {
     "station": {
-        "usgsId": "02025500",
+        "usgsId": "02035000",
         "wrId": "",
-        "usgsName": "JAMES RIVER AT HOLCOMB ROCK, VA",
+        "usgsName": "JAMES RIVER AT CARTERSVILLE, VA",
         "wrName": "",
         "wrIsActive": "",
         "usgsDescription": "USGS stream monitoring site.",
         "wrDescription": "",
-        "recordTime": "2020-09-10T00:31:28+0000",
+        "recordTime": "2020-09-10T00:40:28+0000",
         "locationStatus": "Fair"
     },
     "data": {
@@ -27,13 +27,13 @@
             "safety": "N.A."
         },
         "streamFlow": {
-            "date": "2020-09-09T08:45:00.000-04:00",
-            "value": "2130",
+            "date": "2020-09-09T07:45:00.000-04:00",
+            "value": "4160",
             "safety": "Fair"
         },
         "gaugeHeight": {
-            "date": "2020-09-09T08:45:00.000-04:00",
-            "value": "5.18",
+            "date": "2020-09-09T07:45:00.000-04:00",
+            "value": "3.00",
             "safety": "N.A."
         }
     }
