@@ -248,32 +248,16 @@ function parse_station_json($usgsJson, $wrJson)
 
 }
 
-
-	// determin station status (displayed on dashboard's LEDs)
-	
-	$locationStatus = "Fair";
-	
-	// $bacteria_threshold_safety == "Danger" ||
-	if ( $e_coli_concentration_safety == "Danger")
+	// determin station status (displayed on dashboard's LEDs)	
+	// TODO: investigate how USGS and WR determines fair/caution/danger thresholds.
+	if ($bacteria_threshold_safety == "Danger")
 	{
 		$locationStatus = "Danger";
 	}
-	else if ($bacteria_threshold_safety == "Fair" || $e_coli_concentration_safety == "Fair")
-	{	
-		$locationStatus = "Fair";				
-	}
-	
-	if ($stream_flow_safety == "Danger" || $gauge_height_safety == "Danger")
-	{		
-		$locationStatus = "Danger";
-	}
-	
-	if ($locationStatus != "Danger" && $water_temp_c_safety == "Caution")
+	else
 	{
-		$locationStatus = "Caution";
+	    $locationStatus = "Fair";
 	}
-
-
 
 	// Build JSON data.
     $array['station'] = array(
