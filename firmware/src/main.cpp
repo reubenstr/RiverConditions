@@ -631,17 +631,16 @@ void DisplayIndicator(String string, int x, int y, uint16_t color)
 
 void UpdateIndicators()
 {
-  static int oldStatusSum = 5;
+  static int oldStatusSum = 99;
   int statusSum = (int)sdStatus + (int)wifiStatus + (int)dataApiStatus + (int)timeApiStatus;
 
   if (oldStatusSum != statusSum)
   {
     oldStatusSum = statusSum;
-    int apiVal = (int)dataApiStatus + (int)timeApiStatus;
-
-    DisplayIndicator("SD", 210, textStatusY, sdStatus ? TFT_GREEN : TFT_RED);
-    DisplayIndicator("WIFI", 267, textStatusY, wifiStatus ? TFT_GREEN : TFT_RED);
-    DisplayIndicator("API", 347, textStatusY, apiVal == 0 ? TFT_RED : apiVal == 1 ? TFT_YELLOW : apiVal == 2 ? TFT_GREEN : TFT_BLUE);
+    DisplayIndicator("SD", 200, textStatusY, sdStatus ? TFT_GREEN : TFT_RED);
+    DisplayIndicator("WIFI", 252, textStatusY, wifiStatus ? TFT_GREEN : TFT_RED);
+    DisplayIndicator("TIME", 329, textStatusY, timeApiStatus ? TFT_GREEN : TFT_RED);
+    DisplayIndicator("API", 407, textStatusY, dataApiStatus ? TFT_GREEN : TFT_RED);
   }
 }
 
@@ -961,7 +960,7 @@ void loop(void)
   }
 
   // Update location on screen.
-  static int oldSelectedLoctionIndex = -1;
+  static int oldSelectedLoctionIndex = 99;
   if (oldSelectedLoctionIndex != selectedLoctionIndex)
   {
     oldSelectedLoctionIndex = selectedLoctionIndex;
