@@ -10,7 +10,7 @@
     {
       "stationIds": [
         "8866",
-        "2024000"
+        "02024000"
       ],
       "shortName": "Maury River",
       "area": "Buena Vista, Va"
@@ -123,7 +123,7 @@
     },
     {
       "stationIds": [
-        "2039500",
+        "02039500",
         "8878"
       ],
       "shortName": "Appomattox River",
@@ -131,7 +131,7 @@
     },
     {
       "stationIds": [
-        "2041650"
+        "02041650"
       ],
       "shortName": "Appomattox River",
       "area": "Matoaca, Va"

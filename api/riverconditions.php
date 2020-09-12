@@ -238,14 +238,12 @@ function parse_station_json($usgsJson, $wrJson)
 
         $e_coli_concentration_date_time = $wrArray['sample_idx']['e_coli_concentration'][$e_coli_concentration_recent_index]['date'];
         $e_coli_concentration_value = $wrArray['sample_idx']['e_coli_concentration'][$e_coli_concentration_recent_index]['value'];
-		
-		
-	
-	$bacteria_threshold_safety = $bacteria_threshold_value < 104 ? "Fair" : "Danger";  
-	$water_temp_c_safety = $water_temp_c_value < 20 ? "Danger" : $water_temp_c_value < 32 ? "Caution" : "Fair";
-	$e_coli_concentration_safety = $e_coli_concentration_value == 0 ? "Fair" : "Danger";
-	
-
+				
+		// Determine safety values.
+		$bacteria_threshold_safety = $bacteria_threshold_value == 0 ? "Fair" : "Danger";  
+		$water_temp_c_safety = $water_temp_c_value < 20 ? "Danger" : $water_temp_c_value < 32 ? "Caution" : "Fair";
+		//$e_coli_concentration_safety = $e_coli_concentration_value < 104  ? "Fair" : "Danger";
+		$e_coli_concentration_safety = $bacteria_threshold_safety;
 }
 
 	// determin station status (displayed on dashboard's LEDs)	

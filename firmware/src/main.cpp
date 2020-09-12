@@ -112,8 +112,8 @@ bool wifiStatus = false;
 bool timeApiStatus = false;
 bool dataApiStatus = false;
 
-String dataApiErrorDate;
-String dataApiErrorMessage;
+String dataApiErrorDate = "No error.";
+String dataApiErrorMessage = "No error.";
 
 int numLocations;
 int selectedLoctionIndex;
@@ -193,8 +193,6 @@ void UpdateLocationIndicators(bool allOffFlag = false)
 
   FastLED.setBrightness(indicatorBrightness);
 
-
-
   // Turn off all indicators.
   if (allOffFlag)
   {
@@ -252,7 +250,6 @@ void UpdateLocationIndicators(bool allOffFlag = false)
 
     delay(10);
     FastLED.show();
-
   }
 }
 
@@ -467,6 +464,7 @@ bool UpdateLocationDataOnScreen(int locationIndex, String *locationDataJson, int
       PrintData(2, "Water temperature:", doc["data"]["waterTempC"]["value"], "C", safetyStringToColor(doc["data"]["waterTempC"]["safety"]));
       PrintData(3, "E. Coli:", doc["data"]["eColiConcentration"]["value"], "col/samp.", safetyStringToColor(doc["data"]["eColiConcentration"]["safety"]));
       PrintData(4, "Bacteria threshold:", doc["data"]["bacteriaThreshold"]["safety"], "", safetyStringToColor(doc["data"]["bacteriaThreshold"]["safety"]));
+      PrintData(5, "", "", "", TFT_BLUE);
       PrintData(6, "Station type(s):", stationTypes[stationTypeIndex], "", TFT_BLUE);
       PrintData(7, "Date Retrieved:", lastModifedDateBuf, "", TFT_WHITE);
       PrintData(8, "(from endpoint)", lastModifedTimeBuf, "", TFT_WHITE);
@@ -502,14 +500,17 @@ void UpdateDisplay()
     PrintTitle("Diagnostics:", "", TFT_YELLOW);
 
     char buf[50];
-    PrinInfo(0, "", TFT_YELLOW);
+    sprintf(buf, "Date/Time: %s", currentTime.substring(0, 19).c_str());
+    PrinInfo(0, buf, TFT_YELLOW);
     sprintf(buf, "Selected location: %u", selectedLoctionIndex);
     PrinInfo(1, buf, TFT_YELLOW);
-    PrinInfo(2, "", TFT_YELLOW);
     sprintf(buf, "Next API location: %u", apiLoctionIndex);
-    PrinInfo(3, buf, TFT_YELLOW);
-    PrinInfo(4, "", TFT_YELLOW);
-    PrinInfo(5, "", TFT_YELLOW);
+    PrinInfo(2, buf, TFT_YELLOW);
+    PrinInfo(3, "", TFT_YELLOW);
+    sprintf(buf, "API Error: %s", dataApiErrorDate.c_str(), dataApiErrorMessage.c_str());
+    PrinInfo(4, buf, TFT_YELLOW);
+    sprintf(buf, "API Error: %s", dataApiErrorMessage.c_str());
+    PrinInfo(5, buf, TFT_YELLOW);
     PrinInfo(6, "", TFT_YELLOW);
     PrinInfo(7, "", TFT_YELLOW);
     PrinInfo(8, "", TFT_YELLOW);
@@ -684,8 +685,8 @@ bool UpdateTime()
     return false;
   }
 
-  String currentTime = doc["datetime"];
-  Serial.printf("Current time: %s", currentTime.c_str());
+  currentTime = doc["datetime"].as<String>();
+  Serial.printf("Current time: %s\n", currentTime.c_str());
 
   return true;
 }
@@ -724,21 +725,25 @@ bool GetDataFromAPI(int loctionIndex)
   {
     Serial.print("Connection failed, HTTP client code: ");
     Serial.println(httpCode);
+    dataApiErrorDate = currentTime;
+    dataApiErrorMessage = httpCode;
     http.end();
     return false;
   }
 
   DynamicJsonDocument doc(2048);
-  DeserializationError error = deserializeJson(doc, payload);
+  DeserializationError jsonError = deserializeJson(doc, payload);
 
-  if (error)
+  if (jsonError)
   {
     Serial.print(F("DeserializeJson() failed: "));
-    Serial.println(error.c_str());
+    Serial.println(jsonError.c_str());
+    dataApiErrorDate = currentTime;
+    dataApiErrorMessage = jsonError.c_str();
     return false;
   }
 
-  if (!doc["error"].isNull())
+  if (doc["error"].as<bool>() == true)
   {
     dataApiErrorDate = doc["date"].as<String>();
     dataApiErrorMessage = doc["message"].as<String>();
@@ -913,6 +918,45 @@ void loop(void)
 
   UpdateLocationIndicators();
 
+  // Screen display timeout.
+  static int OldDisplayScreen;
+  static msTimer timerDelayScreen(6000);
+  if (OldDisplayScreen != displayScreen)
+  {
+    OldDisplayScreen = displayScreen;
+    timerDelayScreen.resetDelay();
+    Serial.printf("Display screen changed to screen: %u.\n", displayScreen);
+    UpdateDisplay();
+  }
+
+  if (timerDelayScreen.elapsed())
+  {
+    displayScreen = 0;
+    OldDisplayScreen = displayScreen;
+  }
+
+  // Update location on screen.
+  static msTimer timerUpdateScreen(60000);
+  static int oldSelectedLoctionIndex = 99;
+  if (timerUpdateScreen.elapsed())
+  {
+    if (displayScreen == 2)
+    {
+      timerUpdateScreen.setDelay(500);
+    }
+    else
+    {
+      timerUpdateScreen.setDelay(60000);
+    }
+    oldSelectedLoctionIndex = 99;
+  }
+  if (oldSelectedLoctionIndex != selectedLoctionIndex)
+  {
+    oldSelectedLoctionIndex = selectedLoctionIndex;
+    UpdateDisplay();
+  }
+
+  
   // Fetch data from API(s).
   if (WiFi.status() == WL_CONNECTED)
   {
@@ -940,30 +984,5 @@ void loop(void)
     wifiStatus = true;
     dataApiStatus = false;
     timeApiStatus = false;
-  }
-
-  // Screen display timeout.
-  static int OldDisplayScreen;
-  static msTimer timerDelayScreen(6000);
-  if (OldDisplayScreen != displayScreen)
-  {
-    OldDisplayScreen = displayScreen;
-    timerDelayScreen.resetDelay();
-    Serial.printf("Display screen changed to screen: %u.\n", displayScreen);
-    UpdateDisplay();
-  }
-
-  if (timerDelayScreen.elapsed())
-  {
-    displayScreen = 0;
-    OldDisplayScreen = displayScreen;
-  }
-
-  // Update location on screen.
-  static int oldSelectedLoctionIndex = 99;
-  if (oldSelectedLoctionIndex != selectedLoctionIndex)
-  {
-    oldSelectedLoctionIndex = selectedLoctionIndex;
-    UpdateDisplay();
   }
 }
