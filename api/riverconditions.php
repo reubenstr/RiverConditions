@@ -1,11 +1,15 @@
 <?php
-// Captures river conditions from waterreporter.org and waterservices.usgs.gov
-// Data is retreived in JSON, parsed, reduced, and repacked as JSON into a managable size.
-// JSON data is cached as files where the file name is the station id.
-//
-// Sep. 5th 2020
-//
-// Usage example: www.hostingwebsite.com/api/riverconditions?stationId=02029000,8863
+/*
+	Captures river conditions from waterreporter.org and waterservices.usgs.gov
+	Data is retreived in JSON, parsed, reduced, and repacked as JSON into a managable size.
+	JSON data is cached as files where the file name is the station id.
+
+	Sep. 5th 2020
+	
+	Usage example where hostingwebsite is your website: 
+		www.hostingwebsite.com/api/riverconditions?stationId=02029000,8863
+*/
+ 
 
 //set_error_handler("warning_handler", E_WARNING | E_ALL);
 

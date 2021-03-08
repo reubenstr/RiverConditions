@@ -9,5 +9,7 @@
       "password": "Mlx5ykch"
     }
   ],
-  "time zone": "EST"
+  "timeZone": "EST",
+  "indicatorBrightness": 75,
+  "signBrightness": 60  
 }

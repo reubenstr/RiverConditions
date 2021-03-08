@@ -1,44 +1,46 @@
 /*
-* James River Conditions Dashboard
-*
-* Retrieves river condition data from various API then displays
-* river safety indicators on a physical graphical map using LEDs
-* as testing station locations.
-*
-* Reuben Strangelove
-* Summer 2020
-*
-* Calls custom API midpoint which collects station data
-* from two APIs endpoints (USGS and Water Reporter).
-* Due to the large and complex json reponse from the endpoints, 
-* The midpoint is reponsible for compressing the station data into 
-* a smaller json chunk (with minimal data manipulation).
-*
-*
-* MCU: ESP32 (ESP32 DEV KIT 1.0)
-* Extra hardware: TFT tft display, generic SD-Card reader, WS2812b led strips
-*
-* Locations (containing one or more stations) are cached on the SD card.
-* Location parameters (name, area, station ids, etc.) are stored on the SD card: locations.json.
+	River Conditions
+	Reuben Strangelove
+	Summer 2020
+	
+	Retrieves James River water condition data from various API then displays
+	river safety indicators on a physical graphical map using LEDs
+	representing testing station locations.
+		
+	Calls custom API midpoint which collects station data
+	from two APIs endpoints (USGS and Water Reporter).
+	Due to the large and complex json reponse from the endpoints, 
+	The midpoint is reponsible for compressing the station data into 
+	a smaller json chunk (with minimal data manipulation).
+		
+	MCU: 
+		ESP32 (ESP32 DEV KIT 1.0)
+	
+	Extra hardware:
+		TFT tft display, generic SD-Card reader, WS2812b single LEDs
+	
+	
+	SD card data:
+		Location description (name, area, station ids, etc.) are stored as: locations.json	
+		Location data (containing one or more stations) are cached as: locations\[location_id].json
 */
 
 #include <Arduino.h>
 #include <SPI.h>
 #include <Wire.h>
-#include <Adafruit_GFX.h>
+// #include <Adafruit_GFX.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include <SPI.h>
 #include <SD.h>
-#include "utilities.h" // local library
-#include "msTimer.h"   // local library
-#include "flasher.h"   // local library
+#include "utilities.h"  // local library
+#include "msTimer.h"    // local library
+#include "flasher.h"    // local library
 
-#include <TFT_eSPI.h>  // https://github.com/Bodmer/TFT_eSPI
-#include <JC_Button.h> // https://github.com/JChristensen/JC_Button
-
-#include "FastLED.h"
+#include <TFT_eSPI.h>   // https://github.com/Bodmer/TFT_eSPI
+#include <JC_Button.h>  // https://github.com/JChristensen/JC_Button
+#include "FastLED.h"    // https://github.com/FastLED/FastLED
 
 /*
 The following defines are required for the TFT_eSPI library.
@@ -69,7 +71,7 @@ Remove conflicting defines.
 const unsigned long timeBetweenApiCalls = 60000; // Time in milliseconds between API calls for location data.
 const unsigned long timeBetweenIndicatorUpdate = 300000;
 
-const int numLEDs = 27; //23 locations and 4 legends
+const int numLEDs = 27; //23 locations plus 4 legends LEDs.
 const int daysDataIsValid = 7;
 const int textIndent = 15;
 const int textStatusY = 293;
