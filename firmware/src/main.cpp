@@ -28,19 +28,17 @@
 #include <Arduino.h>
 #include <SPI.h>
 #include <Wire.h>
-// #include <Adafruit_GFX.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
-#include <ArduinoJson.h>
 #include <SPI.h>
 #include <SD.h>
-#include "utilities.h"  // local library
-#include "msTimer.h"    // local library
-#include "flasher.h"    // local library
-
-#include <TFT_eSPI.h>   // https://github.com/Bodmer/TFT_eSPI
-#include <JC_Button.h>  // https://github.com/JChristensen/JC_Button
-#include "FastLED.h"    // https://github.com/FastLED/FastLED
+#include "utilities.h"    // local library
+#include "msTimer.h"      // local library
+#include "flasher.h"      // local library
+#include <ArduinoJson.h>  // https://github.com/bblanchon/ArduinoJson
+#include <TFT_eSPI.h>     // https://github.com/Bodmer/TFT_eSPI
+#include <JC_Button.h>    // https://github.com/JChristensen/JC_Button
+#include "FastLED.h"      // https://github.com/FastLED/FastLED
 
 /*
 The following defines are required for the TFT_eSPI library.
